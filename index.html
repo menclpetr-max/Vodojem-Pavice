@@ -4,223 +4,317 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vodojem Pávice</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   body {
-    font-family: system-ui, sans-serif;
-    background: #f6f9fc;
-    margin: 0;
-    padding: 20px;
-    text-align: center;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 900px;
+    margin: 20px auto;
+    background: #f9fafb;
+    color: #333;
   }
-  h1 { margin-bottom: 20px; }
-  .values {
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: white;
+    padding: 20px 25px;
+    border-radius: 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+  }
+
+  .signal-icon {
+    font-size: 80px;
+    background: #0078d7;
+    color: white;
+    width: 95px;
+    height: 95px;
+    border-radius: 50%;
     display: flex;
     justify-content: center;
-    gap: 20px;
-    margin-bottom: 20px;
+    align-items: center;
+    box-shadow: 0 0 15px #0078d7aa;
   }
-  .card {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    padding: 15px 25px;
-    flex: 1;
-    max-width: 200px;
-  }
-  .label { font-size: 0.9em; color: #777; }
-  .value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
 
-  .charts {
+  .header-text {
+    flex-grow: 1;
+  }
+
+  .header-text h1 {
+    margin: 0 0 8px 0;
+    font-weight: 700;
+    font-size: 2.3rem;
+  }
+
+  .signal-strength {
+    font-size: 14px;
+    color: #555;
+    letter-spacing: 0.05em;
+  }
+
+  table {
+    width: auto;  /* Necháme tabulku automatické šířky */
+    margin: 0 auto 18px auto; /* vycentrovaná s margin bottom */
+    border-collapse: separate;
+    border-spacing: 50px 20px; /* 50px mezera mezi sloupci, 20px mezi řádky */
+    background: transparent;
+  }
+
+  td {
+    background: white;
+    border: none;
+    padding: 18px 15px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    border-radius: 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+    vertical-align: middle;
+    width: 40%; /* užší buňky pro větší mezeru */
+  }
+
+  /* Nadpis + ikonka vedle sebe */
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #0078d7;
+    margin-bottom: 12px;
+  }
+
+  .title-icon {
+    font-size: 32px;
+    user-select: none;
+  }
+
+  /* Hodnota a jednotka pod sebou */
+  .value {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .unit {
+    font-size: 18px;
+    color: #555;
+    font-weight: 500;
+  }
+
+  .alert {
+    color: #d93025;
+  }
+
+  #lastUpdate {
+    text-align: right;
+    font-size: 15px;
+    color: #777;
+    margin-bottom: 28px;
+    font-style: italic;
+  }
+
+  .charts-container {
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    align-items: center;
-    margin-top: 20px;
+    gap: 25px;
+    margin-bottom: 30px;
   }
 
-  .charts canvas {
-    width: 90%;
-    max-width: 600px;
-    height: 300px !important;
+  canvas {
     background: white;
-    border-radius: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  }
-
-  #updated {
-    color: gray;
-    font-size: 0.9em;
-    margin-top: 15px;
-  }
-
-  #debugLog {
-    margin-top: 20px;
-    font-family: monospace;
-    font-size: 0.8em;
-    color: #444;
-    max-height: 150px;
-    overflow-y: auto;
-    background: #eee;
-    padding: 10px;
-    border-radius: 8px;
-    text-align: left;
-    white-space: pre-wrap;
+    border-radius: 20px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.09);
+    padding: 20px;
+    width: 100% !important;
+    height: 350px !important;
   }
 </style>
-</head>
-<body>
-  <h1>📡 Vodojem Pávice</h1>
-  <div class="values">
-    <div class="card">
-      <div class="label">💧 Hladina</div>
-      <div class="value" id="level">-</div>
-    </div>
-    <div class="card">
-      <div class="label">🌊 Průtok</div>
-      <div class="value" id="flow">-</div>
-    </div>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let levelChart, flowChart;
+  let lastUpdateTime = null;
 
-  <div class="charts">
-    <canvas id="chartLevel"></canvas>
-    <canvas id="chartFlow"></canvas>
-  </div>
+  async function fetchData() {
+    try {
+      const response = await fetch('https://api.thingspeak.com/channels/1214142/feeds.json?results=20&api_key=SGHZ5KIDVYK3BG1M');
+      const dataJson = await response.json();
+      const feeds = dataJson.feeds;
 
-  <p id="updated">Načítám data...</p>
-  <pre id="debugLog">Debug log:</pre>
+      if (!feeds || feeds.length === 0) {
+        console.error("Data nejsou k dispozici");
+        return;
+      }
 
-  <script>
-    const channelId = "1214142";
-    const apiKey = "SGHZ5KIDVYK3BG1M";
-    const apiUrl = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${apiKey}&results=20`;
+      const latest = feeds[feeds.length - 1];
+      lastUpdateTime = new Date(latest.created_at);
 
-    // Debug helper - zapíše zprávu do debug boxu i konzole
-    function debugLog(msg) {
-      console.log(msg);
-      const logElem = document.getElementById('debugLog');
-      logElem.textContent += "\n" + msg;
-      logElem.scrollTop = logElem.scrollHeight;
-    }
+      document.getElementById('signalStrength').textContent = latest.field1 || "N/A";
 
-    async function fetchData() {
-      try {
-        debugLog("Odesílám požadavek na Thingspeak API...");
-        const response = await fetch(apiUrl);
-        debugLog(`HTTP status: ${response.status}`);
-        if (!response.ok) throw new Error("Chyba HTTP: " + response.status);
+      const level = parseFloat(latest.field2);
+      const flow = parseFloat(latest.field3);
 
-        const data = await response.json();
-        debugLog("Data přijata, zpracovávám...");
-        const feeds = data.feeds;
-        debugLog(`Počet načtených záznamů: ${feeds.length}`);
+      const levelValueEl = document.getElementById('levelValue');
+      const flowValueEl = document.getElementById('flowValue');
 
-        if (!feeds || feeds.length === 0) {
-          document.getElementById("updated").textContent = "Žádná data k dispozici.";
-          return;
-        }
+      levelValueEl.textContent = isNaN(level) ? "N/A" : level.toFixed(1);
+      flowValueEl.textContent = isNaN(flow) ? "N/A" : flow.toFixed(2);
 
-        // Hledáme poslední platný záznam
-        let lastValidFeed = null;
-        for (let i = feeds.length - 1; i >= 0; i--) {
-          if (feeds[i].field2 !== null && feeds[i].field3 !== null) {
-            lastValidFeed = feeds[i];
-            break;
-          }
-        }
-        if (!lastValidFeed) {
-          document.getElementById("updated").textContent = "Data neobsahují požadované hodnoty.";
-          debugLog("Žádný platný záznam s field2 a field3 nebyl nalezen.");
-          return;
-        }
+      if (!isNaN(level) && level < 100) {
+        levelValueEl.classList.add('alert');
+      } else {
+        levelValueEl.classList.remove('alert');
+      }
 
-        const levelVal = parseFloat(lastValidFeed.field2);
-        const flowVal = parseFloat(lastValidFeed.field3);
+      if (!isNaN(flow) && flow < 1) {
+        flowValueEl.classList.add('alert');
+      } else {
+        flowValueEl.classList.remove('alert');
+      }
 
-        document.getElementById("level").textContent = isNaN(levelVal) ? "-" : levelVal.toFixed(1) + " cm";
-        document.getElementById("flow").textContent = isNaN(flowVal) ? "-" : flowVal.toFixed(2) + " L/min";
-        document.getElementById("updated").textContent = "Aktualizováno: " + lastValidFeed.created_at.replace("T", " ").slice(0,16);
+      const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
+      const levelData = feeds.map(f => parseFloat(f.field2) || 0);
+      const flowData = feeds.map(f => parseFloat(f.field3) || 0);
 
-        debugLog(`Poslední platný záznam: Hladina=${levelVal}, Průtok=${flowVal}`);
-
-        const labels = [];
-        const levelData = [];
-        const flowData = [];
-
-        feeds.forEach(f => {
-          if (f.field2 !== null && !isNaN(parseFloat(f.field2)) &&
-              f.field3 !== null && !isNaN(parseFloat(f.field3))) {
-            labels.push(f.created_at.slice(11,16));
-            levelData.push(parseFloat(f.field2));
-            flowData.push(parseFloat(f.field3));
+      if (!levelChart) {
+        levelChart = new Chart(document.getElementById('levelChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Hladina (cm)',
+              data: levelData,
+              borderColor: '#0078d7',
+              backgroundColor: 'rgba(0,120,215,0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true }
+            },
+            plugins: {
+              legend: { labels: { font: { size: 16 } } }
+            }
           }
         });
-
-        updateChartLevel(labels, levelData);
-        updateChartFlow(labels, flowData);
-      } catch (error) {
-        document.getElementById("updated").textContent = "Chyba při načítání dat.";
-        debugLog("Chyba: " + error.message);
+      } else {
+        levelChart.data.labels = labels;
+        levelChart.data.datasets[0].data = levelData;
+        levelChart.update();
       }
-    }
 
-    let chartLevel, chartFlow;
-
-    function updateChartLevel(labels, data) {
-      if (chartLevel) chartLevel.destroy();
-      const ctx = document.getElementById('chartLevel').getContext('2d');
-      chartLevel = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Hladina (cm)',
-            data: data,
-            borderColor: 'blue',
-            backgroundColor: 'rgba(0,0,255,0.1)',
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: { title: { display: true, text: 'Čas (HH:MM)' } },
-            y: { title: { display: true, text: 'cm' }, beginAtZero: true }
+      if (!flowChart) {
+        flowChart = new Chart(document.getElementById('flowChart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Průtok (L/h)',
+              data: flowData,
+              borderColor: '#228B22',
+              backgroundColor: 'rgba(34,139,34,0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true }
+            },
+            plugins: {
+              legend: { labels: { font: { size: 16 } } }
+            }
           }
-        }
-      });
-    }
+        });
+      } else {
+        flowChart.data.labels = labels;
+        flowChart.data.datasets[0].data = flowData;
+        flowChart.update();
+      }
 
-    function updateChartFlow(labels, data) {
-      if (chartFlow) chartFlow.destroy();
-      const ctx = document.getElementById('chartFlow').getContext('2d');
-      chartFlow = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Průtok (L/min)',
-            data: data,
-            borderColor: 'green',
-            backgroundColor: 'rgba(0,128,0,0.1)',
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: { title: { display: true, text: 'Čas (HH:MM)' } },
-            y: { title: { display: true, text: 'L/min' }, beginAtZero: true }
-          }
-        }
-      });
-    }
+      updateLastUpdateTime();
 
+    } catch (err) {
+      console.error("Chyba při načítání dat: ", err);
+    }
+  }
+
+  function updateLastUpdateTime() {
+    if (!lastUpdateTime) return;
+
+    const now = new Date();
+    const diffMs = now - lastUpdateTime;
+    const diffMin = Math.floor(diffMs / 60000);
+
+    const text = diffMin === 0 ? 'Aktualizováno právě teď' :
+      `Aktualizováno před ${diffMin} minutou${diffMin === 1 ? '' : 'ami'}`;
+
+    document.getElementById('lastUpdate').textContent = text;
+  }
+
+  setInterval(() => {
     fetchData();
-    setInterval(fetchData, 60000);
-  </script>
+    updateLastUpdateTime();
+  }, 30000);
+
+  window.onload = () => {
+    fetchData();
+    updateLastUpdateTime();
+  };
+</script>
+</head>
+<body>
+
+<header>
+  <div class="signal-icon" title="Síla signálu">📡</div>
+  <div class="header-text">
+    <h1>Vodojem Pávice</h1>
+    <div class="signal-strength">Síla signálu: <span id="signalStrength">-</span></div>
+  </div>
+</header>
+
+<table>
+  <tbody>
+    <tr>
+      <td>
+        <div class="title-row">
+          <span class="title-icon">💧</span>
+          <span>Hladina</span>
+        </div>
+        <div class="value alert" id="levelValue">-</div>
+        <div class="unit">cm</div>
+      </td>
+      <td>
+        <div class="title-row">
+          <span class="title-icon">🚰</span>
+          <span>Průtok</span>
+        </div>
+        <div class="value" id="flowValue">-</div>
+        <div class="unit">L/min</div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div id="lastUpdate"></div>
+
+<div class="charts-container">
+  <canvas id="levelChart"></canvas>
+  <canvas id="flowChart"></canvas>
+</div>
+
 </body>
 </html>
+
+
 
