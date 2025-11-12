@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vodojem Pávice</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f6f9fc;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+  }
+  h1 { margin-bottom: 20px; }
+  .values {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    padding: 15px 25px;
+    flex: 1;
+    max-width: 200px;
+  }
+  .label { font-size: 0.9em; color: #777; }
+  .value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
+
+  .charts {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  .charts canvas {
+    width: 90%;
+    max-width: 600px;
+    height: 300px !important;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+
+  #updated {
+    color: gray;
+    font-size: 0.9em;
+    margin-top: 15px;
+  }
+
+  #debugLog {
+    margin-top: 20px;
+    font-family: monospace;
+    font-size: 0.8em;
+    color: #444;
+    max-height: 150px;
+    overflow-y: auto;
+    background: #eee;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: left;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+  <h1>📡 Vodojem Pávice</h1>
+  <div class="values">
+    <div class="card">
+      <div class="label">💧 Hladina</div>
+      <div class="value" id="level">-</div>
+    </div>
+    <div class="card">
+      <div class="label">🌊 Průtok</div>
+      <div class="value" id="flow">-</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <canvas id="chartLevel"></canvas>
+    <canvas id="chartFlow"></canvas>
+  </div>
+
+  <p id="updated">Načítám data...</p>
+  <pre id="debugLog">Debug log:</pre>
+
+  <script>
+    const channelId = "1214142";
+    const apiKey = "SGHZ5KIDVYK3BG1M";
+    const apiUrl = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${apiKey}&results=20`;
+
+    // Debug helper - zapíše zprávu do debug boxu i konzole
+    function debugLog(msg) {
+      console.log(msg);
+      const logElem = document.getElementById('debugLog');
+      logElem.textContent += "\n" + msg;
+      logElem.scrollTop = logElem.scrollHeight;
+    }
+
+    async function fetchData() {
+      try {
+        debugLog("Odesílám požadavek na Thingspeak API...");
+        const response = await fetch(apiUrl);
+        debugLog(`HTTP status: ${response.status}`);
+        if (!response.ok) throw new Error("Chyba HTTP: " + response.status);
+
+        const data = await response.json();
+        debugLog("Data přijata, zpracovávám...");
+        const feeds = data.feeds;
+        debugLog(`Počet načtených záznamů: ${feeds.length}`);
+
+        if (!feeds || feeds.length === 0) {
+          document.getElementById("updated").textContent = "Žádná data k dispozici.";
+          return;
+        }
+
+        // Hledáme poslední platný záznam
+        let lastValidFeed = null;
+        for (let i = feeds.length - 1; i >= 0; i--) {
+          if (feeds[i].field2 !== null && feeds[i].field3 !== null) {
+            lastValidFeed = feeds[i];
+            break;
+          }
+        }
+        if (!lastValidFeed) {
+          document.getElementById("updated").textContent = "Data neobsahují požadované hodnoty.";
+          debugLog("Žádný platný záznam s field2 a field3 nebyl nalezen.");
+          return;
+        }
+
+        const levelVal = parseFloat(lastValidFeed.field2);
+        const flowVal = parseFloat(lastValidFeed.field3);
+
+        document.getElementById("level").textContent = isNaN(levelVal) ? "-" : levelVal.toFixed(1) + " cm";
+        document.getElementById("flow").textContent = isNaN(flowVal) ? "-" : flowVal.toFixed(2) + " L/min";
+        document.getElementById("updated").textContent = "Aktualizováno: " + lastValidFeed.created_at.replace("T", " ").slice(0,16);
+
+        debugLog(`Poslední platný záznam: Hladina=${levelVal}, Průtok=${flowVal}`);
+
+        const labels = [];
+        const levelData = [];
+        const flowData = [];
+
+        feeds.forEach(f => {
+          if (f.field2 !== null && !isNaN(parseFloat(f.field2)) &&
+              f.field3 !== null && !isNaN(parseFloat(f.field3))) {
+            labels.push(f.created_at.slice(11,16));
+            levelData.push(parseFloat(f.field2));
+            flowData.push(parseFloat(f.field3));
+          }
+        });
+
+        updateChartLevel(labels, levelData);
+        updateChartFlow(labels, flowData);
+      } catch (error) {
+        document.getElementById("updated").textContent = "Chyba při načítání dat.";
+        debugLog("Chyba: " + error.message);
+      }
+    }
+
+    let chartLevel, chartFlow;
+
+    function updateChartLevel(labels, data) {
+      if (chartLevel) chartLevel.destroy();
+      const ctx = document.getElementById('chartLevel').getContext('2d');
+      chartLevel = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Hladina (cm)',
+            data: data,
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0,0,255,0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Čas (HH:MM)' } },
+            y: { title: { display: true, text: 'cm' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function updateChartFlow(labels, data) {
+      if (chartFlow) chartFlow.destroy();
+      const ctx = document.getElementById('chartFlow').getContext('2d');
+      chartFlow = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Průtok (L/min)',
+            data: data,
+            borderColor: 'green',
+            backgroundColor: 'rgba(0,128,0,0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Čas (HH:MM)' } },
+            y: { title: { display: true, text: 'L/min' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    fetchData();
+    setInterval(fetchData, 60000);
+  </script>
+</body>
+</html>
+
