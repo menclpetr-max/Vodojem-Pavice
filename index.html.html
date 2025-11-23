@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Vodojem Pávice</title>
+<style>
+  :root{
+    --max-level-cm:243;
+    --max-volume:44262;
+    --accent:#0078d7;
+    --water-grad-start: rgba(200,215,220,0.95);
+    --water-grad-mid: rgba(200,215,220,0.75);
+    --water-grad-end: rgba(200,215,220,0.60);
+  }
+  html,body{height:100%;margin:0}
+  body{
+    font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+    background:#f6f8fa;color:#222;
+    display:flex;justify-content:center;padding:14px;
+  }
+  .container{width:100%;max-width:900px}
+
+  header{
+    display:flex;align-items:center;gap:12px;
+    background:#fff;padding:14px;border-radius:12px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.06);margin-bottom:14px;
+  }
+  .signal-icon{
+    width:82px;height:82px;border-radius:50%;
+    background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:34px;box-shadow:0 0 12px rgba(0,120,215,0.6);
+  }
+  header h1{margin:0;font-size:1.4rem}
+  .signal-strength{font-size:0.92rem;color:#666}
+
+  .svg-wrap{
+    background:#fff;padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.05);
+    margin-bottom:14px;text-align:center;
+  }
+  .svg-title{font-weight:700;font-size:1.1rem;margin-bottom:6px}
+  .svg-sub{color:#444;margin-bottom:8px}
+
+  .svg-text-big{font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-weight:800;font-size:28px;fill:#fff;text-anchor:middle}
+  .svg-text-small{font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-weight:700;font-size:15px;fill:#fff;text-anchor:middle}
+  .svg-text-muted{font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:11px;fill:#666;text-anchor:middle}
+
+  .card{background:#fff;padding:12px;border-radius:12px;box-shadow:0 6px 14px rgba(0,0,0,0.05);margin-bottom:12px}
+  .title-row{display:flex;align-items:center;gap:8px;color:var(--accent);font-weight:700;margin-bottom:8px}
+  .value{font-size:2rem;font-weight:800}
+  .unit{color:#666;font-size:0.95rem}
+  .small{font-size:0.9rem;color:#666}
+
+  .progress-bar{width:100%;height:12px;background:#eee;border-radius:8px;overflow:hidden;margin-top:8px}
+  .progress-fill{height:100%;width:0;background:linear-gradient(90deg,#00c853,#00aaff);transition:width .6s ease;border-radius:8px}
+
+  #lastUpdate{text-align:center;color:#444;margin:12px 0;font-style:italic}
+
+  .charts{margin-top:8px;background:#fff;padding:12px;border-radius:10px;box-shadow:0 6px 14px rgba(0,0,0,0.05)}
+  canvas{width:100% !important;height:420px !important}
+
+  @media (max-width:640px){
+    .signal-icon{width:64px;height:64px;font-size:26px}
+    .value{font-size:1.6rem}
+    canvas{height:360px !important}
+  }
+
+@keyframes waveMove { 0%{transform:translateX(0);}100%{transform:translateX(-120px);} }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="signal-icon">📡</div>
+      <div style="flex:1">
+        <h1>Vodojem Pávice</h1>
+        <div class="signal-strength">Síla signálu: <span id="signalStrength">–</span></div>
+      </div>
+    </header>
+
+    <div class="svg-wrap">
+      <div class="svg-title">Aktuální zaplnění</div>
+      <div class="svg-sub" id="svgSubtitle" style="font-weight:900;font-size:1.2rem;">— l</div>
+
+      <svg id="tankSvg" viewBox="0 0 500 400" width="340" height="260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="tankClipNew">
+            <path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z" />
+          </clipPath>
+
+          <linearGradient id="waterGradNew" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#5fb8ff"/>
+            <stop offset="60%" stop-color="#2a8be8"/>
+            <stop offset="100%" stop-color="#0f62c9"/>
+          </linearGradient>
+
+          <filter id="waveBlur" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="0.6" />
+          </filter>
+        </defs>
+
+        <path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"
+              fill="#f7f9fb" stroke="#cfcfcf" stroke-width="1.6"/>
+
+        <g clip-path="url(#tankClipNew)">
+          <rect id="waterRect" x="0" y="380" width="500" height="400" fill="url(#waterGradNew)"/>
+
+          <path class="wavePath"
+            d="M0,0 C50,8 100,-8 150,0 C200,8 250,-8 300,0 C350,8 400,-8 450,0 L450,25 L0,25 Z"
+            fill="rgba(255,255,255,0.25)" style="animation:waveMove 6s linear infinite;" />
+
+          <path class="wavePath"
+            d="M0,10 C60,18 120,-6 180,10 C240,18 300,-6 360,10 C420,18 480,-6 540,10 L540,40 L0,40 Z"
+            fill="rgba(255,255,255,0.18)" style="animation:waveMove 9s linear infinite;opacity:0.45;" />
+
+          <g id="wave" transform="translate(0,0)" filter="url(#waveBlur)">
+            <path id="wavePath"
+                  d="M0,0 C40,6 80,-6 120,0 C160,6 200,-6 240,0 C280,6 320,-6 360,0 C400,6 440,-6 500,0 L500,20 L0,20 Z"
+                  fill="rgba(255,255,255,0.06)"/>
+          </g>
+        </g>
+
+        <path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"
+              fill="none" stroke="#999" stroke-width="1"/>
+
+        <text id="svgPercent" x="250" y="205"
+              style="font-family:'Segoe UI';font-weight:900;font-size:26px;fill:#000;text-anchor:middle">
+              — %
+        </text>
+
+        <text id="svgLiters" x="250" y="170"
+              style="font-family:'Segoe UI';font-weight:800;font-size:30px;fill:#fff;text-anchor:middle">
+              — l
+        </text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="title-row"><span style="font-size:20px">💧</span> Hladina</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div class="value" id="levelValue">–</div>
+        <div class="unit">cm</div>
+      </div>
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div class="small">max 243 cm</div>
+    </div>
+
+    <div class="card">
+      <div class="title-row"><span style="font-size:20px">🚰</span> Průtok</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div class="value" id="flowValue">–</div>
+        <div class="unit">L/min</div>
+      </div>
+    </div>
+
+    <div id="lastUpdate">Aktualizováno: –</div>
+
+    <div class="charts"><canvas id="levelChart"></canvas></div>
+    <div class="charts"><canvas id="flowChart"></canvas></div>
+
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ============ volume calculation ============
+function getLiters(height_cm){
+  const L = 5.9;
+  const slope = 0.15;
+  const maxH = 2.45;
+  const profile = [
+    [0.00, 0.00],
+    [4.40, 0.00],
+    [3.12, 2.45],
+    [1.28, 2.45]
+  ];
+
+  let h0 = Number(height_cm)/100;
+  if(isNaN(h0) || h0<=0) return 0;
+  if(h0>maxH) h0=maxH;
+  const h1 = Math.max(0, h0 - slope);
+
+  function polygonArea(p){
+    let a=0;
+    for(let i=0;i<p.length;i++){
+      const j=(i+1)%p.length;
+      a += p[i][0]*p[j][1] - p[j][0]*p[i][1];
+    }
+    return Math.abs(a)/2;
+  }
+  function clip(p,h){
+    const out=[];
+    for(let i=0;i<p.length;i++){
+      const A=p[i], B=p[(i+1)%p.length];
+      const Ain=A[1]<=h, Bin=B[1]<=h;
+      if(Ain) out.push([A[0],A[1]]);
+      if(Ain ^ Bin){
+        const t=(h-A[1])/(B[1]-A[1]);
+        out.push([A[0]+t*(B[0]-A[0]), h]);
+      }
+    }
+    return out;
+  }
+  function areaAt(d){
+    if(d<=0) return 0;
+    const c=clip(profile,d);
+    return c.length<3 ? 0 : polygonArea(c);
+  }
+  function integrate(d0,d1){
+    let steps=300; if(steps%2) steps++;
+    const dx=L/steps;
+    let sum=0;
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const d=d0+(d1-d0)*t;
+      const A=areaAt(d);
+      const k=(i===0||i===steps)?1:(i%2?4:2);
+      sum+=k*A;
+    }
+    return sum*dx/3;
+  }
+  return integrate(h0,h1)*1000;
+}
+
+// helpers
+function fmt(n){ return Number(n).toLocaleString('cs-CZ'); }
+
+// API
+const CHANNEL_URL = 'https://api.thingspeak.com/channels/1214142/feeds.json?results=40&api_key=SGHZ5KIDVYK3BG1M';
+const MAX_VOLUME = 44262;
+const MAX_LEVEL_CM = 243;
+
+let levelChart, flowChart, lastUpdateTime = null;
+
+async function fetchData(){
+  try{
+    const r = await fetch(CHANNEL_URL);
+    const j = await r.json();
+    const feeds = j.feeds;
+    if(!feeds || feeds.length===0) return;
+
+    const latest = feeds[feeds.length-1];
+    lastUpdateTime = new Date(latest.created_at);
+
+    document.getElementById('signalStrength').textContent = latest.field1 || "–";
+
+    const level = parseFloat(latest.field2);
+    const flow  = parseFloat(latest.field3);
+
+    document.getElementById('levelValue').textContent = isNaN(level) ? "–" : fmt(level.toFixed(1));
+
+    const volume = isNaN(level) ? 0 : getLiters(level);
+    let percent = (volume / MAX_VOLUME) * 100;
+    if(percent > 100) percent = 100;
+
+    document.getElementById('svgPercent').textContent = Math.round(percent) + ' %';
+    document.getElementById('svgLiters').textContent = fmt(Math.round(volume)) + ' l';
+    document.getElementById('svgSubtitle').textContent = fmt(Math.round(volume)) + ' l';
+
+    const tankH = 400;
+    const waterH = (level / MAX_LEVEL_CM) * tankH;
+    const waterRect = document.getElementById('waterRect');
+    waterRect.setAttribute('y', tankH - waterH);
+    waterRect.setAttribute('height', waterH);
+
+    const wave = document.getElementById('wave');
+    if(wave){
+      wave.setAttribute('transform', `translate(0,${(tankH - waterH)-8})`);
+      const now = Date.now();
+      const dx = Math.sin(now/800)*4;
+      const wavePath = document.getElementById('wavePath');
+      if(wavePath) wavePath.setAttribute('d', `M0,0 C40,${6+dx} 80,${-6+dx} 120,0 C160,${6+dx} 200,${-6+dx} 240,0 C280,${6+dx} 320,${-6+dx} 360,0 C400,${6+dx} 440,${-6+dx} 500,0 L500,20 L0,20 Z`);
+    }
+
+    const pct = Math.max(0, Math.min(100, (level / MAX_LEVEL_CM) * 100));
+    const progressEl = document.getElementById('progressFill');
+    progressEl.style.width = pct + '%';
+    if(pct >= 50) progressEl.style.background = 'linear-gradient(90deg,#22c55e,#16a34a)';
+    else if(pct >= 20) progressEl.style.background = 'linear-gradient(90deg,#f59e0b,#fb923c)';
+    else progressEl.style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+
+    document.getElementById('flowValue').textContent = isNaN(flow) ? "–" : fmt(flow.toFixed(2));
+
+    const labels = feeds.map(x=>new Date(x.created_at).toLocaleString());
+    const levelData = feeds.map(x=>parseFloat(x.field2)||0);
+    const flowData  = feeds.map(x=>parseFloat(x.field3)||0);
+
+    const lvlCtx = document.getElementById('levelChart').getContext('2d');
+    if(!levelChart){
+      levelChart = new Chart(lvlCtx, {
+        type:'line',
+        data:{ labels, datasets:[{
+          label:'Hladina (cm)', data:levelData, borderColor:'#0078d7',
+          backgroundColor:'rgba(0,120,215,0.08)', fill:true, tension: 0.1, pointRadius: 0
+        }]},
+        options:{ responsive:true, maintainAspectRatio:false }
+      });
+    } else {
+      levelChart.data.labels = labels;
+      levelChart.data.datasets[0].data = levelData;
+      levelChart.update();
+    }
+
+    const flwCtx = document.getElementById('flowChart').getContext('2d');
+    if(!flowChart){
+      flowChart = new Chart(flwCtx, {
+        type:'line',
+        data:{ labels, datasets:[{
+          label:'Průtok (L/min)', data:flowData, borderColor:'#16a34a',
+          backgroundColor:'rgba(34,139,34,0.08)', fill:true, tension: 0.1, pointRadius: 0
+        }]},
+        options:{ responsive:true, maintainAspectRatio:false }
+      });
+    } else {
+      flowChart.data.labels = labels;
+      flowChart.data.datasets[0].data = flowData;
+      flowChart.update();
+    }
+
+    updateLastUpdate();
+  } catch(err){
+    console.error('Chyba načítání:', err);
+  }
+}
+
+function updateLastUpdate(){
+  const el = document.getElementById('lastUpdate');
+  if(!lastUpdateTime){ el.textContent = 'Aktualizováno: –'; return; }
+  const now = new Date();
+  const diffMin = Math.floor((now - lastUpdateTime)/60000);
+  el.innerHTML = diffMin === 0 ? 'Aktualizováno právě teď' : `Aktualizováno před <b>${diffMin}</b> minutami`;
+}
+
+fetchData();
+setInterval(fetchData,30000);
+setInterval(updateLastUpdate,10000);
+</script>
+</body>
+</html>
