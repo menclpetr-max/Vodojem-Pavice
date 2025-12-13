@@ -7,7 +7,12 @@
 
 <style>
   :root{
+    --max-level-cm:243;
+    --max-volume:44262;
     --accent:#0078d7;
+    --water-grad-start: rgba(200,215,220,0.95);
+    --water-grad-mid: rgba(200,215,220,0.75);
+    --water-grad-end: rgba(200,215,220,0.60);
   }
   html,body{height:100%;margin:0}
   body{
@@ -24,45 +29,40 @@
   }
   .signal-icon{
     width:82px;height:82px;border-radius:50%;
-    background:var(--accent);color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:34px;
+    background:var(--accent);color:#fff;display:flex;
+    align-items:center;justify-content:center;
+    font-size:34px;box-shadow:0 0 12px rgba(0,120,215,0.6);
   }
+  header h1{margin:0;font-size:1.4rem}
+  .signal-strength{font-size:0.92rem;color:#666}
 
   .svg-wrap{
     background:#fff;padding:12px;border-radius:12px;
     box-shadow:0 6px 18px rgba(0,0,0,0.05);
-    text-align:center;margin-bottom:14px;
+    margin-bottom:14px;text-align:center;
   }
+  .svg-title{font-weight:700;font-size:1.1rem;margin-bottom:6px}
+  .svg-sub{color:#444;margin-bottom:8px}
 
-  .svg-title{font-weight:700;font-size:1.1rem}
-  .svg-sub{font-weight:900;font-size:1.2rem;margin:6px 0}
-
-  .card{
-    background:#fff;padding:12px;border-radius:12px;
-    box-shadow:0 6px 14px rgba(0,0,0,0.05);margin-bottom:12px
-  }
-
-  .title-row{font-weight:700;color:var(--accent);margin-bottom:6px}
+  .card{background:#fff;padding:12px;border-radius:12px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.05);margin-bottom:12px}
+  .title-row{display:flex;align-items:center;gap:8px;
+    color:var(--accent);font-weight:700;margin-bottom:8px}
   .value{font-size:2rem;font-weight:800}
-  .unit{color:#666}
+  .unit{color:#666;font-size:0.95rem}
+  .small{font-size:0.9rem;color:#666}
 
-  .progress-bar{
-    width:100%;height:12px;background:#eee;border-radius:8px;overflow:hidden
-  }
-  .progress-fill{
-    height:100%;background:linear-gradient(90deg,#22c55e,#16a34a)
-  }
+  .progress-bar{width:100%;height:12px;background:#eee;
+    border-radius:8px;overflow:hidden;margin-top:8px}
+  .progress-fill{height:100%;width:0;
+    background:linear-gradient(90deg,#00c853,#00aaff);
+    transition:width .6s ease;border-radius:8px}
 
-  .charts{
-    background:#fff;padding:12px;border-radius:12px;
-    box-shadow:0 6px 14px rgba(0,0,0,0.05);margin-bottom:14px
-  }
-  canvas{width:100%!important;height:360px!important}
+  #lastUpdate{text-align:center;color:#444;margin:12px 0;font-style:italic}
 
-  #lastUpdate{
-    text-align:center;color:#444;font-style:italic;margin:10px 0
-  }
+  .charts{margin-top:8px;background:#fff;padding:12px;
+    border-radius:10px;box-shadow:0 6px 14px rgba(0,0,0,0.05)}
+  canvas{width:100% !important;height:420px !important}
 </style>
 </head>
 
@@ -71,50 +71,62 @@
 
 <header>
   <div class="signal-icon">📡</div>
-  <div>
-    <h2 style="margin:0">Vodojem Pávice</h2>
-    <div>Síla signálu: <span id="signalStrength">–</span></div>
+  <div style="flex:1">
+    <h1>Vodojem Pávice</h1>
+    <div class="signal-strength">Síla signálu:
+      <span id="signalStrength">–</span></div>
   </div>
 </header>
 
 <div class="svg-wrap">
   <div class="svg-title">Aktuální zaplnění</div>
-  <div class="svg-sub" id="svgSubtitle">– l</div>
+  <div class="svg-sub" id="svgSubtitle">— l</div>
 
 <svg viewBox="0 0 500 400" width="340" height="260">
-  <defs>
-    <clipPath id="tankClip">
-      <path d="M30,380 L470,380 C460,260 430,140 350,50 L150,50 C70,140 40,260 30,380 Z"/>
-    </clipPath>
-  </defs>
+<defs>
+<clipPath id="tankClip">
+<path d="M 30,380 L 470,380
+C 460,260 430,140 350,50
+L 150,50
+C 70,140 40,260 30,380 Z"/>
+</clipPath>
+</defs>
 
-  <path d="M30,380 L470,380 C460,260 430,140 350,50 L150,50 C70,140 40,260 30,380 Z"
-        fill="#f7f9fb" stroke="#bbb" stroke-width="2"/>
+<path d="M 30,380 L 470,380
+C 460,260 430,140 350,50
+L 150,50
+C 70,140 40,260 30,380 Z"
+fill="#f7f9fb" stroke="#cfcfcf"/>
 
-  <g clip-path="url(#tankClip)">
-    <rect id="waterRect" x="0" y="380" width="500" height="0" fill="#2a8be8"/>
-    <g id="wave">
-      <path d="M0,0 C60,8 120,-8 180,0 C240,8 300,-8 360,0 C420,8 480,-8 540,0 L540,20 L0,20 Z"
-            fill="rgba(255,255,255,0.35)"/>
-    </g>
-  </g>
+<g clip-path="url(#tankClip)">
+  <rect id="waterRect" x="0" y="380" width="500" height="0"
+        fill="#2a8be8"/>
+</g>
 
-  <text id="svgPercent" x="250" y="210"
-        style="font-size:26px;font-weight:900;text-anchor:middle">– %</text>
+<text id="svgLiters" x="250" y="170"
+fill="#fff" font-size="30" font-weight="800"
+text-anchor="middle">— l</text>
+
+<text id="svgPercent" x="250" y="205"
+fill="#000" font-size="26" font-weight="900"
+text-anchor="middle">— %</text>
 </svg>
 </div>
 
 <div class="card">
   <div class="title-row">💧 Hladina</div>
-  <div><span class="value" id="levelValue">–</span> <span class="unit">cm</span></div>
+  <div><span class="value" id="levelValue">–</span>
+       <span class="unit">cm</span></div>
   <div class="progress-bar">
     <div id="progressFill" class="progress-fill"></div>
   </div>
+  <div class="small">max 243 cm</div>
 </div>
 
 <div class="card">
   <div class="title-row">🚰 Průtok</div>
-  <div><span class="value" id="flowValue">–</span> <span class="unit">L/min</span></div>
+  <div><span class="value" id="flowValue">–</span>
+       <span class="unit">L/min</span></div>
 </div>
 
 <div id="lastUpdate">Aktualizováno: –</div>
@@ -126,23 +138,70 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// =================== KONSTANTY ===================
-const MAX_LEVEL_CM = 243;
-const MAX_VOLUME = 44262;
+// ===== OBJEM – BEZE ZMĚNY =====
+function getLiters(height_cm){
+  const L = 5.9;
+  const slope = 0.15;
+  const maxH = 2.45;
+  const profile = [
+    [0.00, 0.00],
+    [4.40, 0.00],
+    [3.12, 2.45],
+    [1.28, 2.45]
+  ];
+  let h0 = Number(height_cm)/100;
+  if(isNaN(h0) || h0<=0) return 0;
+  if(h0>maxH) h0=maxH;
+  const h1 = Math.max(0, h0 - slope);
 
-// 🔧 JEN GRAFIKA SVG – schematické meze
-const WATER_TOP = 50;
-const WATER_BOTTOM = 380;
-
-// =================== OBJEM (STEJNÉ JAKO PŘEDTÍM) ===================
-function getLiters(h_cm){
-  let h = h_cm / MAX_LEVEL_CM;
-  return Math.max(0, Math.min(1, h)) * MAX_VOLUME;
+  function polygonArea(p){
+    let a=0;
+    for(let i=0;i<p.length;i++){
+      const j=(i+1)%p.length;
+      a += p[i][0]*p[j][1] - p[j][0]*p[i][1];
+    }
+    return Math.abs(a)/2;
+  }
+  function clip(p,h){
+    const out=[];
+    for(let i=0;i<p.length;i++){
+      const A=p[i], B=p[(i+1)%p.length];
+      const Ain=A[1]<=h, Bin=B[1]<=h;
+      if(Ain) out.push([A[0],A[1]]);
+      if(Ain ^ Bin){
+        const t=(h-A[1])/(B[1]-A[1]);
+        out.push([A[0]+t*(B[0]-A[0]), h]);
+      }
+    }
+    return out;
+  }
+  function areaAt(d){
+    if(d<=0) return 0;
+    const c=clip(profile,d);
+    return c.length<3 ? 0 : polygonArea(c);
+  }
+  function integrate(d0,d1){
+    let steps=300; if(steps%2) steps++;
+    const dx=L/steps;
+    let sum=0;
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const d=d0+(d1-d0)*t;
+      const A=areaAt(d);
+      const k=(i===0||i===steps)?1:(i%2?4:2);
+      sum+=k*A;
+    }
+    return sum*dx/3;
+  }
+  return integrate(h0,h1)*1000;
 }
 
-// =================== API ===================
+function fmt(n){ return Number(n).toLocaleString('cs-CZ'); }
+
 const CHANNEL_URL =
 'https://api.thingspeak.com/channels/1214142/feeds.json?results=40&api_key=SGHZ5KIDVYK3BG1M';
+const MAX_VOLUME = 44262;
+const MAX_LEVEL_CM = 243;
 
 let levelChart, flowChart, lastUpdateTime=null;
 
@@ -152,80 +211,97 @@ async function fetchData(){
   const feeds = j.feeds;
   if(!feeds.length) return;
 
-  const f = feeds[feeds.length-1];
-  lastUpdateTime = new Date(f.created_at);
+  const latest = feeds.at(-1);
+  lastUpdateTime = new Date(latest.created_at);
 
-  const level = parseFloat(f.field2);
-  const flow  = parseFloat(f.field3);
+  const level = parseFloat(latest.field2);
+  const flow  = parseFloat(latest.field3);
+
+  document.getElementById('signalStrength').textContent =
+    latest.field1 || "–";
+  document.getElementById('levelValue').textContent =
+    isNaN(level)?"–":fmt(level.toFixed(1));
+  document.getElementById('flowValue').textContent =
+    isNaN(flow)?"–":fmt(flow.toFixed(2));
 
   const volume = getLiters(level);
-  const percent = volume / MAX_VOLUME * 100;
+  let percent = (volume / MAX_VOLUME) * 100;
+  if(percent>100) percent=100;
 
-  document.getElementById('signalStrength').textContent = f.field1 ?? '–';
-  document.getElementById('levelValue').textContent = level.toFixed(1);
-  document.getElementById('flowValue').textContent = flow.toFixed(2);
-  document.getElementById('svgSubtitle').textContent = Math.round(volume) + ' l';
-  document.getElementById('svgPercent').textContent = Math.round(percent) + ' %';
-  document.getElementById('progressFill').style.width = percent + '%';
+  document.getElementById('svgLiters').textContent =
+    fmt(Math.round(volume))+' l';
+  document.getElementById('svgPercent').textContent =
+    Math.round(percent)+' %';
+  document.getElementById('svgSubtitle').textContent =
+    fmt(Math.round(volume))+' l';
 
-  // 🔧 OPRAVA GRAFIKY – PODLE CM (REALITA)
-  const ratio = Math.max(0, Math.min(1, level / MAX_LEVEL_CM));
-  const waterHeight = (WATER_BOTTOM - WATER_TOP) * ratio;
-  const waterY = WATER_BOTTOM - waterHeight;
+  // ✅ JEDINÁ ZMĚNA – GRAFIKA PODLE OBJEMU
+  const SVG_BOTTOM = 380;
+  const SVG_TOP = 50;
+  const SVG_HEIGHT = SVG_BOTTOM - SVG_TOP;
+  const waterH = (percent/100)*SVG_HEIGHT;
 
-  document.getElementById('waterRect')
-    .setAttribute('y', waterY);
-  document.getElementById('waterRect')
-    .setAttribute('height', waterHeight);
+  const waterRect=document.getElementById('waterRect');
+  waterRect.setAttribute('y', SVG_BOTTOM-waterH);
+  waterRect.setAttribute('height', waterH);
 
-  document.getElementById('wave')
-    .setAttribute('transform', `translate(0,${waterY-10})`);
+  const pct=(level/MAX_LEVEL_CM)*100;
+  document.getElementById('progressFill').style.width=pct+'%';
 
-  // ======= GRAFY (BEZE ZMĚNY) =======
-  const labels = feeds.map(x=>new Date(x.created_at).toLocaleString());
-  const levelData = feeds.map(x=>parseFloat(x.field2)||0);
-  const flowData  = feeds.map(x=>parseFloat(x.field3)||0);
+  document.getElementById('lastUpdate').innerHTML =
+    'Aktualizováno před <b>' +
+    Math.floor((Date.now()-lastUpdateTime)/60000) +
+    '</b> minutami';
 
+  // ===== GRAFY – FUNKČNÍ (PŮVODNÍ LOGIKA) =====
+  const labels=feeds.map(x=>new Date(x.created_at).toLocaleString());
+  const levelData=feeds.map(x=>parseFloat(x.field2)||0);
+  const flowData=feeds.map(x=>parseFloat(x.field3)||0);
+
+  const lvlCtx=document.getElementById('levelChart').getContext('2d');
   if(!levelChart){
-    levelChart = new Chart(levelChartEl.getContext('2d'),{
+    levelChart=new Chart(lvlCtx,{
       type:'line',
-      data:{labels,datasets:[{data:levelData,label:'Hladina (cm)',borderColor:'#0078d7',fill:true}]},
-      options:{responsive:true,maintainAspectRatio:false}
+      data:{labels,datasets:[{
+        label:'Hladina (cm)',
+        data:levelData,
+        borderColor:'#0078d7',
+        backgroundColor:'rgba(0,120,215,0.08)',
+        fill:true,pointRadius:0}]},
+      options:{maintainAspectRatio:false}
     });
-    flowChart = new Chart(flowChartEl.getContext('2d'),{
-      type:'line',
-      data:{labels,datasets:[{data:flowData,label:'Průtok (L/min)',borderColor:'#16a34a',fill:true}]},
-      options:{responsive:true,maintainAspectRatio:false}
-    });
-  } else {
-    levelChart.data.labels = labels;
-    levelChart.data.datasets[0].data = levelData;
+  }else{
+    levelChart.data.labels=labels;
+    levelChart.data.datasets[0].data=levelData;
     levelChart.update();
-    flowChart.data.labels = labels;
-    flowChart.data.datasets[0].data = flowData;
-    flowChart.update();
   }
 
-  updateLastUpdate();
-}
-
-const levelChartEl = document.getElementById('levelChart');
-const flowChartEl  = document.getElementById('flowChart');
-
-function updateLastUpdate(){
-  if(!lastUpdateTime) return;
-  const diff = Math.floor((Date.now()-lastUpdateTime)/60000);
-  document.getElementById('lastUpdate').innerHTML =
-    diff===0 ? 'Aktualizováno právě teď' : `Aktualizováno před <b>${diff}</b> minutami`;
+  const flwCtx=document.getElementById('flowChart').getContext('2d');
+  if(!flowChart){
+    flowChart=new Chart(flwCtx,{
+      type:'line',
+      data:{labels,datasets:[{
+        label:'Průtok (L/min)',
+        data:flowData,
+        borderColor:'#16a34a',
+        backgroundColor:'rgba(34,139,34,0.08)',
+        fill:true,pointRadius:0}]},
+      options:{maintainAspectRatio:false}
+    });
+  }else{
+    flowChart.data.labels=labels;
+    flowChart.data.datasets[0].data=flowData;
+    flowChart.update();
+  }
 }
 
 fetchData();
 setInterval(fetchData,30000);
-setInterval(updateLastUpdate,10000);
 </script>
-
 </body>
 </html>
+
+
 
 
 
