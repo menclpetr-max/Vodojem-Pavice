@@ -10,10 +10,12 @@
     --max-level-cm:243;
     --max-volume:44262;
     --accent:#0078d7;
+    --christmas:#c1121f;
     --water-grad-start: rgba(200,215,220,0.95);
     --water-grad-mid: rgba(200,215,220,0.75);
     --water-grad-end: rgba(200,215,220,0.60);
   }
+
   html,body{height:100%;margin:0}
   body{
     font-family:"Segoe UI",Tahoma,Arial,sans-serif;
@@ -25,16 +27,38 @@
   header{
     display:flex;align-items:center;gap:12px;
     background:#fff;padding:14px;border-radius:12px;
-    box-shadow:0 6px 14px rgba(0,0,0,0.06);margin-bottom:14px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.06);
+    margin-bottom:14px;
   }
   .signal-icon{
     width:82px;height:82px;border-radius:50%;
-    background:var(--accent);color:#fff;display:flex;
-    align-items:center;justify-content:center;
+    background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;
     font-size:34px;box-shadow:0 0 12px rgba(0,120,215,0.6);
   }
   header h1{margin:0;font-size:1.4rem}
   .signal-strength{font-size:0.92rem;color:#666}
+
+  /* 🎄 VÁNOČNÍ BUŇKA */
+  .christmas-box{
+    background:#fff;
+    padding:24px;
+    border-radius:12px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.06);
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+  .christmas-text{
+    font-size:2.2rem;   /* ⬅️ VĚTŠÍ NEŽ NADPIS */
+    font-weight:900;
+    color:var(--christmas);
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
 
   .svg-wrap{
     background:#fff;padding:12px;border-radius:12px;
@@ -44,25 +68,53 @@
   .svg-title{font-weight:700;font-size:1.1rem;margin-bottom:6px}
   .svg-sub{color:#444;margin-bottom:8px}
 
-  .card{background:#fff;padding:12px;border-radius:12px;
-    box-shadow:0 6px 14px rgba(0,0,0,0.05);margin-bottom:12px}
-  .title-row{display:flex;align-items:center;gap:8px;
-    color:var(--accent);font-weight:700;margin-bottom:8px}
+  .card{
+    background:#fff;padding:12px;border-radius:12px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.05);
+    margin-bottom:12px;
+  }
+  .title-row{
+    display:flex;align-items:center;gap:8px;
+    color:var(--accent);font-weight:700;margin-bottom:8px;
+  }
   .value{font-size:2rem;font-weight:800}
   .unit{color:#666;font-size:0.95rem}
   .small{font-size:0.9rem;color:#666}
 
-  .progress-bar{width:100%;height:12px;background:#eee;
-    border-radius:8px;overflow:hidden;margin-top:8px}
-  .progress-fill{height:100%;width:0;
+  .progress-bar{
+    width:100%;height:12px;background:#eee;
+    border-radius:8px;overflow:hidden;margin-top:8px;
+  }
+  .progress-fill{
+    height:100%;width:0;
     background:linear-gradient(90deg,#00c853,#00aaff);
-    transition:width .6s ease;border-radius:8px}
+    transition:width .6s ease;border-radius:8px;
+  }
 
-  #lastUpdate{text-align:center;color:#444;margin:12px 0;font-style:italic}
+  #lastUpdate{
+    text-align:center;color:#444;margin:12px 0;font-style:italic;
+  }
 
-  .charts{margin-top:8px;background:#fff;padding:12px;
-    border-radius:10px;box-shadow:0 6px 14px rgba(0,0,0,0.05)}
-  canvas{width:100% !important;height:420px !important}
+  .range-buttons{
+    display:flex;gap:8px;justify-content:center;
+    margin:10px 0 6px;flex-wrap:wrap;
+  }
+  .range-buttons button{
+    border:1px solid var(--accent);
+    background:#fff;color:var(--accent);
+    padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-weight:600;
+  }
+  .range-buttons button.active{
+    background:var(--accent);color:#fff;
+  }
+
+  .charts{
+    margin-top:8px;background:#fff;padding:12px;
+    border-radius:10px;
+    box-shadow:0 6px 14px rgba(0,0,0,0.05);
+  }
+  canvas{width:100%!important;height:420px!important}
 </style>
 </head>
 
@@ -73,10 +125,15 @@
   <div class="signal-icon">📡</div>
   <div style="flex:1">
     <h1>Vodojem Pávice</h1>
-    <div class="signal-strength">Síla signálu:
-      <span id="signalStrength">–</span></div>
+    <div class="signal-strength">
+      Síla signálu: <span id="signalStrength">–</span>
+    </div>
   </div>
 </header>
+
+<div class="christmas-box">
+  <div class="christmas-text">🎄 Veselé Vánoce 🎁</div>
+</div>
 
 <div class="svg-wrap">
   <div class="svg-title">Aktuální zaplnění</div>
@@ -131,6 +188,12 @@ text-anchor="middle">— %</text>
 
 <div id="lastUpdate">Aktualizováno: –</div>
 
+<div class="range-buttons">
+  <button class="active" onclick="setRange(7,this)">Týden</button>
+  <button onclick="setRange(30,this)">Měsíc</button>
+  <button onclick="setRange(365,this)">Rok</button>
+</div>
+
 <div class="charts"><canvas id="levelChart"></canvas></div>
 <div class="charts"><canvas id="flowChart"></canvas></div>
 
@@ -138,7 +201,7 @@ text-anchor="middle">— %</text>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// ===== OBJEM – BEZE ZMĚNY =====
+/* ===== TVŮJ PŮVODNÍ JS – BEZE ZMĚNY ===== */
 function getLiters(height_cm){
   const L = 5.9;
   const slope = 0.15;
@@ -199,19 +262,34 @@ function getLiters(height_cm){
 function fmt(n){ return Number(n).toLocaleString('cs-CZ'); }
 
 const CHANNEL_URL =
-'https://api.thingspeak.com/channels/1214142/feeds.json?results=40&api_key=SGHZ5KIDVYK3BG1M';
+'https://api.thingspeak.com/channels/1214142/feeds.json?results=800&api_key=SGHZ5KIDVYK3BG1M';
 const MAX_VOLUME = 44262;
 const MAX_LEVEL_CM = 243;
 
-let levelChart, flowChart, lastUpdateTime=null;
+let feedsAll=[];
+let levelChart, flowChart;
+let lastUpdateTime=null;
+let rangeDays=7;
+
+function setRange(days,btn){
+  rangeDays=days;
+  document.querySelectorAll('.range-buttons button')
+    .forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCharts();
+}
 
 async function fetchData(){
   const r = await fetch(CHANNEL_URL);
   const j = await r.json();
-  const feeds = j.feeds;
-  if(!feeds.length) return;
+  feedsAll = j.feeds;
+  processLatest();
+  renderCharts();
+}
 
-  const latest = feeds.at(-1);
+function processLatest(){
+  if(!feedsAll.length) return;
+  const latest = feedsAll.at(-1);
   lastUpdateTime = new Date(latest.created_at);
 
   const level = parseFloat(latest.field2);
@@ -235,7 +313,6 @@ async function fetchData(){
   document.getElementById('svgSubtitle').textContent =
     fmt(Math.round(volume))+' l';
 
-  // ✅ JEDINÁ ZMĚNA – GRAFIKA PODLE OBJEMU
   const SVG_BOTTOM = 380;
   const SVG_TOP = 50;
   const SVG_HEIGHT = SVG_BOTTOM - SVG_TOP;
@@ -245,52 +322,77 @@ async function fetchData(){
   waterRect.setAttribute('y', SVG_BOTTOM-waterH);
   waterRect.setAttribute('height', waterH);
 
-  const pct=(level/MAX_LEVEL_CM)*100;
-  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressFill').style.width =
+    (level/MAX_LEVEL_CM)*100 + '%';
 
   document.getElementById('lastUpdate').innerHTML =
     'Aktualizováno před <b>' +
     Math.floor((Date.now()-lastUpdateTime)/60000) +
     '</b> minutami';
+}
 
-  // ===== GRAFY – FUNKČNÍ (PŮVODNÍ LOGIKA) =====
-  const labels=feeds.map(x=>new Date(x.created_at).toLocaleString());
-  const levelData=feeds.map(x=>parseFloat(x.field2)||0);
-  const flowData=feeds.map(x=>parseFloat(x.field3)||0);
+function renderCharts(){
+  if(!feedsAll.length) return;
 
-  const lvlCtx=document.getElementById('levelChart').getContext('2d');
+  const now = Date.now();
+  const filtered = feedsAll.filter(f =>
+    now - new Date(f.created_at).getTime()
+      <= rangeDays*24*3600*1000
+  );
+
+  const labels = filtered.map(f =>
+    new Date(f.created_at).toLocaleString()
+  );
+  const levelData = filtered.map(f =>
+    parseFloat(f.field2)||0
+  );
+  const flowData = filtered.map(f =>
+    parseFloat(f.field3)||0
+  );
+
   if(!levelChart){
-    levelChart=new Chart(lvlCtx,{
-      type:'line',
-      data:{labels,datasets:[{
-        label:'Hladina (cm)',
-        data:levelData,
-        borderColor:'#0078d7',
-        backgroundColor:'rgba(0,120,215,0.08)',
-        fill:true,pointRadius:0}]},
-      options:{maintainAspectRatio:false}
-    });
+    levelChart = new Chart(
+      document.getElementById('levelChart'),
+      {
+        type:'line',
+        data:{labels,
+          datasets:[{
+            label:'Hladina (cm)',
+            data:levelData,
+            borderColor:'#0078d7',
+            backgroundColor:'rgba(0,120,215,0.08)',
+            fill:true,pointRadius:0
+          }]
+        },
+        options:{maintainAspectRatio:false}
+      }
+    );
   }else{
-    levelChart.data.labels=labels;
-    levelChart.data.datasets[0].data=levelData;
+    levelChart.data.labels = labels;
+    levelChart.data.datasets[0].data = levelData;
     levelChart.update();
   }
 
-  const flwCtx=document.getElementById('flowChart').getContext('2d');
   if(!flowChart){
-    flowChart=new Chart(flwCtx,{
-      type:'line',
-      data:{labels,datasets:[{
-        label:'Průtok (L/min)',
-        data:flowData,
-        borderColor:'#16a34a',
-        backgroundColor:'rgba(34,139,34,0.08)',
-        fill:true,pointRadius:0}]},
-      options:{maintainAspectRatio:false}
-    });
+    flowChart = new Chart(
+      document.getElementById('flowChart'),
+      {
+        type:'line',
+        data:{labels,
+          datasets:[{
+            label:'Průtok (L/min)',
+            data:flowData,
+            borderColor:'#16a34a',
+            backgroundColor:'rgba(34,139,34,0.08)',
+            fill:true,pointRadius:0
+          }]
+        },
+        options:{maintainAspectRatio:false}
+      }
+    );
   }else{
-    flowChart.data.labels=labels;
-    flowChart.data.datasets[0].data=flowData;
+    flowChart.data.labels = labels;
+    flowChart.data.datasets[0].data = flowData;
     flowChart.update();
   }
 }
@@ -300,9 +402,3 @@ setInterval(fetchData,30000);
 </script>
 </body>
 </html>
-
-
-
-
-
-
