@@ -10,7 +10,6 @@
   --accent:#0078d7;
   --accent-light:#e6f2ff;
 }
-
 html,body{height:100%;margin:0}
 body{
   font-family:"Segoe UI",Tahoma,Arial,sans-serif;
@@ -18,25 +17,20 @@ body{
   display:flex;justify-content:center;padding:14px;
 }
 .container{width:100%;max-width:900px}
-
 header{
   display:flex;align-items:center;gap:12px;
   background:#fff;padding:14px;border-radius:12px;
   box-shadow:0 6px 14px rgba(0,0,0,0.06);
   margin-bottom:14px;
 }
-
 .signal-icon{
   width:82px;height:82px;border-radius:50%;
   background:var(--accent);color:#fff;
   display:flex;align-items:center;justify-content:center;
   font-size:34px;
 }
-
 header h1{margin:0;font-size:1.4rem}
 .signal-strength{font-size:0.92rem;color:#666}
-
-/* ===== REKORD KARTA ===== */
 .stat-card{
   background:linear-gradient(135deg,var(--accent-light),#ffffff);
   padding:22px;
@@ -44,85 +38,18 @@ header h1{margin:0;font-size:1.4rem}
   box-shadow:0 10px 22px rgba(0,0,0,0.08);
   margin-bottom:18px;
   text-align:center;
-  position:relative;
-  overflow:hidden;
 }
-.stat-card::after{
-  content:"💧";
-  position:absolute;
-  right:20px;
-  top:15px;
-  font-size:42px;
-  opacity:0.12;
-}
-.stat-title{
-  font-weight:700;
-  font-size:0.95rem;
-  text-transform:uppercase;
-  color:#555;
-  margin-bottom:10px;
-}
-.stat-value{
-  font-size:2.6rem;
-  font-weight:900;
-  color:var(--accent);
-}
-.stat-date{
-  margin-top:6px;
-  font-size:0.95rem;
-  color:#666;
-}
-
-.svg-wrap{
-  background:#fff;padding:12px;border-radius:12px;
-  box-shadow:0 6px 18px rgba(0,0,0,0.05);
-  margin-bottom:14px;text-align:center;
-}
-.svg-title{font-weight:700;font-size:1.1rem;margin-bottom:6px}
-.svg-sub{color:#444;margin-bottom:8px}
-
-.card{
-  background:#fff;padding:12px;border-radius:12px;
-  box-shadow:0 6px 14px rgba(0,0,0,0.05);
-  margin-bottom:12px;
-}
-.title-row{
-  color:var(--accent);font-weight:700;margin-bottom:8px;
-}
-.value{font-size:2rem;font-weight:800}
-.unit{color:#666}
-
-.progress-bar{
-  width:100%;height:12px;background:#eee;
-  border-radius:8px;overflow:hidden;margin-top:8px;
-}
-.progress-fill{
-  height:100%;width:0;
-  background:linear-gradient(90deg,#00c853,#00aaff);
-  transition:width .6s ease;border-radius:8px;
-}
-
-#lastUpdate{
-  text-align:center;
-  margin:12px 0;
-  font-style:italic;
-  color:#444;
-}
-
-.range-buttons{
-  display:flex;gap:8px;justify-content:center;
-  margin:10px 0 6px;flex-wrap:wrap;
-}
+.stat-title{font-weight:700;font-size:0.95rem;color:#555;margin-bottom:10px}
+.stat-value{font-size:2.6rem;font-weight:900;color:var(--accent)}
+.stat-date{margin-top:6px;font-size:0.95rem;color:#666}
+.range-buttons{display:flex;gap:8px;justify-content:center;margin:10px 0 6px}
 .range-buttons button{
   border:1px solid var(--accent);
   background:#fff;color:var(--accent);
   padding:6px 14px;border-radius:6px;
   cursor:pointer;font-weight:600;
 }
-.range-buttons button.active{
-  background:var(--accent);color:#fff;
-}
-
+.range-buttons button.active{background:var(--accent);color:#fff}
 .charts{
   margin-top:8px;background:#fff;padding:12px;
   border-radius:10px;
@@ -151,60 +78,11 @@ canvas{width:100%!important;height:420px!important}
   <div class="stat-date" id="maxFlowDate">–</div>
 </div>
 
-<div class="svg-wrap">
-<div class="svg-title">Aktuální zaplnění</div>
-<div class="svg-sub" id="svgSubtitle">— l</div>
-
-<svg viewBox="0 0 500 400" width="340" height="260">
-<defs>
-<clipPath id="tankClip">
-<path d="M 30,380 L 470,380
-C 460,260 430,140 350,50
-L 150,50
-C 70,140 40,260 30,380 Z"/>
-</clipPath>
-</defs>
-
-<path d="M 30,380 L 470,380
-C 460,260 430,140 350,50
-L 150,50
-C 70,140 40,260 30,380 Z"
-fill="#f7f9fb" stroke="#cfcfcf"/>
-
-<g clip-path="url(#tankClip)">
-<rect id="waterRect" x="0" y="380" width="500" height="0"
-fill="#2a8be8"/>
-</g>
-
-<text id="svgLiters" x="250" y="170"
-fill="#fff" font-size="30" font-weight="800"
-text-anchor="middle">— l</text>
-
-<text id="svgPercent" x="250" y="205"
-fill="#000" font-size="26" font-weight="900"
-text-anchor="middle">— %</text>
-</svg>
-</div>
-
-<div class="card">
-<div class="title-row">💧 Hladina</div>
-<div><span class="value" id="levelValue">–</span> <span class="unit">cm</span></div>
-<div class="progress-bar">
-<div id="progressFill" class="progress-fill"></div>
-</div>
-</div>
-
-<div class="card">
-<div class="title-row">🚰 Přítok</div>
-<div><span class="value" id="flowValue">–</span> <span class="unit">L/min</span></div>
-</div>
-
-<div id="lastUpdate">Aktualizováno: –</div>
-
 <div class="range-buttons">
-<button onclick="setRange(7,this)">Týden</button>
-<button onclick="setRange(30,this)">Měsíc</button>
-<button class="active" onclick="setRange(365,this)">Rok</button>
+  <!-- ✅ TÝDEN JE AKTIVNÍ -->
+  <button class="active" onclick="setRange(7,this)">Týden</button>
+  <button onclick="setRange(30,this)">Měsíc</button>
+  <button onclick="setRange(365,this)">Rok</button>
 </div>
 
 <div class="charts"><canvas id="levelChart"></canvas></div>
@@ -215,71 +93,17 @@ text-anchor="middle">— %</text>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 
-function getLiters(height_cm){
-  const L=5.9,slope=0.15,maxH=2.45;
-  const profile=[[0,0],[4.4,0],[3.12,2.45],[1.28,2.45]];
-  let h0=Number(height_cm)/100;
-  if(isNaN(h0)||h0<=0)return 0;
-  if(h0>maxH)h0=maxH;
-  const h1=Math.max(0,h0-slope);
-
-  function polygonArea(p){
-    let a=0;
-    for(let i=0;i<p.length;i++){
-      const j=(i+1)%p.length;
-      a+=p[i][0]*p[j][1]-p[j][0]*p[i][1];
-    }
-    return Math.abs(a)/2;
-  }
-  function clip(p,h){
-    const out=[];
-    for(let i=0;i<p.length;i++){
-      const A=p[i],B=p[(i+1)%p.length];
-      const Ain=A[1]<=h,Bin=B[1]<=h;
-      if(Ain)out.push([A[0],A[1]]);
-      if(Ain^Bin){
-        const t=(h-A[1])/(B[1]-A[1]);
-        out.push([A[0]+t*(B[0]-A[0]),h]);
-      }
-    }
-    return out;
-  }
-  function areaAt(d){
-    if(d<=0)return 0;
-    const c=clip(profile,d);
-    return c.length<3?0:polygonArea(c);
-  }
-  function integrate(d0,d1){
-    let steps=300;if(steps%2)steps++;
-    const dx=L/steps;
-    let sum=0;
-    for(let i=0;i<=steps;i++){
-      const t=i/steps;
-      const d=d0+(d1-d0)*t;
-      const A=areaAt(d);
-      const k=(i===0||i===steps)?1:(i%2?4:2);
-      sum+=k*A;
-    }
-    return sum*dx/3;
-  }
-  return integrate(h0,h1)*1000;
-}
-
-function fmt(n){return Number(n).toLocaleString('cs-CZ');}
+let rangeDays = 7; // ✅ výchozí týden
 
 const CHANNEL_URL='https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M';
-const MAX_VOLUME=44262;
-const MAX_LEVEL_CM=243;
 
 let feedsAll=[];
-let lastUpdateTime=null;
-let rangeDays=365;
 let levelChart,flowChart;
 
 function setRange(days,btn){
   rangeDays=days;
   document.querySelectorAll('.range-buttons button')
-  .forEach(b=>b.classList.remove('active'));
+    .forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderCharts();
 }
@@ -288,75 +112,12 @@ async function fetchData(){
   const r=await fetch(CHANNEL_URL);
   const j=await r.json();
   feedsAll=j.feeds.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-  processLatest();
   renderCharts();
-  updateYearMaxFlow();
-}
-
-function processLatest(){
-  if(!feedsAll.length)return;
-  const latest=feedsAll.at(-1);
-  lastUpdateTime=new Date(latest.created_at);
-
-  const level=parseFloat(latest.field2);
-  const flow=parseFloat(latest.field3);
-
-  document.getElementById('signalStrength').textContent=latest.field1||"–";
-  document.getElementById('levelValue').textContent=isNaN(level)?"–":fmt(level.toFixed(1));
-  document.getElementById('flowValue').textContent=isNaN(flow)?"–":fmt(flow.toFixed(2));
-
-  const volume=getLiters(level);
-  let percent=(volume/MAX_VOLUME)*100;
-  if(percent>100)percent=100;
-
-  document.getElementById('svgLiters').textContent=fmt(Math.round(volume))+' l';
-  document.getElementById('svgPercent').textContent=Math.round(percent)+' %';
-  document.getElementById('svgSubtitle').textContent=fmt(Math.round(volume))+' l';
-
-  const SVG_BOTTOM=380,SVG_TOP=50;
-  const waterH=(percent/100)*(SVG_BOTTOM-SVG_TOP);
-
-  const waterRect=document.getElementById('waterRect');
-  waterRect.setAttribute('y',SVG_BOTTOM-waterH);
-  waterRect.setAttribute('height',waterH);
-
-  document.getElementById('progressFill').style.width=(level/MAX_LEVEL_CM)*100+'%';
-
-  const minutes=Math.floor((Date.now()-lastUpdateTime)/60000);
-  const el=document.getElementById('lastUpdate');
-  el.innerHTML='Aktualizováno před <b>'+minutes+'</b> minutami';
-
-  if(minutes>130){
-    el.style.color='#c1121f';
-    el.style.fontWeight='700';
-  }else{
-    el.style.color='#444';
-    el.style.fontWeight='normal';
-  }
-}
-
-function updateYearMaxFlow(){
-  if(!feedsAll.length)return;
-  const now=Date.now();
-  const yearData=feedsAll.filter(f=>
-    now-new Date(f.created_at).getTime()<=365*24*3600*1000
-  );
-  let maxFlow=0,maxDate=null;
-  yearData.forEach(f=>{
-    const flow=parseFloat(f.field3);
-    if(!isNaN(flow)&&flow>maxFlow){
-      maxFlow=flow;
-      maxDate=new Date(f.created_at);
-    }
-  });
-  if(maxDate){
-    document.getElementById('maxFlowValue').textContent=fmt(maxFlow.toFixed(2))+' L/min';
-    document.getElementById('maxFlowDate').textContent='Datum: '+maxDate.toLocaleDateString('cs-CZ');
-  }
 }
 
 function renderCharts(){
   if(!feedsAll.length)return;
+
   const now=Date.now();
   const filtered=feedsAll.filter(f=>
     now-new Date(f.created_at).getTime()<=rangeDays*24*3600*1000
@@ -369,7 +130,7 @@ function renderCharts(){
   if(!levelChart){
     levelChart=new Chart(document.getElementById('levelChart'),{
       type:'line',
-      data:{labels,datasets:[{label:'Hladina (cm)',data:levelData,borderColor:'#0078d7',backgroundColor:'rgba(0,120,215,0.08)',fill:true,pointRadius:0}]},
+      data:{labels,datasets:[{label:'Hladina (cm)',data:levelData}]},
       options:{maintainAspectRatio:false}
     });
   }else{
@@ -381,7 +142,7 @@ function renderCharts(){
   if(!flowChart){
     flowChart=new Chart(document.getElementById('flowChart'),{
       type:'line',
-      data:{labels,datasets:[{label:'Přítok (L/min)',data:flowData,borderColor:'#16a34a',backgroundColor:'rgba(34,139,34,0.08)',fill:true,pointRadius:0}]},
+      data:{labels,datasets:[{label:'Přítok (L/min)',data:flowData}]},
       options:{maintainAspectRatio:false}
     });
   }else{
@@ -392,7 +153,10 @@ function renderCharts(){
 }
 
 fetchData();
-setInterval(fetchData,30000);
+
+</script>
+</body>
+</html>
 
 </script>
 </body>
