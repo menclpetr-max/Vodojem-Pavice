@@ -40,7 +40,6 @@ header{
   margin-bottom:18px;
   text-align:center;
 }
-
 .stat-title{font-weight:700;font-size:0.95rem;color:#555;margin-bottom:10px}
 .stat-value{font-size:2.6rem;font-weight:900;color:var(--accent)}
 .stat-date{margin-top:6px;font-size:0.95rem;color:#666}
@@ -56,11 +55,9 @@ header{
   box-shadow:0 6px 14px rgba(0,0,0,0.05);
   margin-bottom:12px;
 }
-
 .title-row{
   color:var(--accent);font-weight:700;margin-bottom:8px;
 }
-
 .value{font-size:2rem;font-weight:800}
 .unit{color:#666}
 
@@ -68,10 +65,10 @@ header{
   width:100%;height:12px;background:#eee;
   border-radius:8px;overflow:hidden;margin-top:8px;
 }
-
 .progress-fill{
   height:100%;width:0;
   background:linear-gradient(90deg,#00c853,#00aaff);
+  transition:width .6s ease;
 }
 
 .range-buttons{
@@ -85,6 +82,12 @@ header{
 }
 .range-buttons button.active{
   background:var(--accent);color:#fff;
+}
+
+.charts{
+  margin-top:8px;background:#fff;padding:12px;
+  border-radius:10px;
+  box-shadow:0 6px 14px rgba(0,0,0,0.05);
 }
 
 canvas{width:100%!important;height:420px!important}
@@ -109,9 +112,9 @@ canvas{width:100%!important;height:420px!important}
   <div class="stat-date" id="weatherDesc">–</div>
 </div>
 
-<!-- 🟦 SVG NÁDRŽ -->
+<!-- 🟦 NÁDRŽ -->
 <div class="svg-wrap">
-<svg viewBox="0 0 500 400" width="300">
+<svg viewBox="0 0 500 400" width="340" height="260">
 <defs>
 <clipPath id="tankClip">
 <path d="M 30,380 L 470,380
@@ -125,30 +128,31 @@ C 70,140 40,260 30,380 Z"/>
 C 460,260 430,140 350,50
 L 150,50
 C 70,140 40,260 30,380 Z"
-fill="#f7f9fb" stroke="#ccc"/>
+fill="#f7f9fb" stroke="#cfcfcf"/>
 
 <g clip-path="url(#tankClip)">
 <rect id="waterRect" x="0" y="380" width="500" height="0" fill="#2a8be8"/>
 </g>
 
-<text id="svgPercent" x="250" y="200" text-anchor="middle" font-size="28" font-weight="bold">– %</text>
+<text id="svgLiters" x="250" y="170" fill="#fff" font-size="30" font-weight="800" text-anchor="middle">— l</text>
+<text id="svgPercent" x="250" y="205" fill="#000" font-size="26" font-weight="900" text-anchor="middle">— %</text>
 </svg>
 </div>
 
-<!-- 💧 HLADINA -->
+<!-- HLADINA -->
 <div class="card">
 <div class="title-row">💧 Hladina</div>
-<div><span id="levelValue">–</span> cm</div>
+<div><span class="value" id="levelValue">–</span> <span class="unit">cm</span></div>
 <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
 </div>
 
-<!-- 🚰 PŘÍTOK -->
+<!-- PŘÍTOK -->
 <div class="card">
 <div class="title-row" style="display:flex;justify-content:space-between;">
 <span>🚰 Přítok</span>
 <span id="maxFlowMini" style="font-size:0.8rem;color:#666;">–</span>
 </div>
-<div><span id="flowValue">–</span> L/min</div>
+<div><span class="value" id="flowValue">–</span> <span class="unit">L/min</span></div>
 </div>
 
 <div class="range-buttons">
@@ -157,8 +161,8 @@ fill="#f7f9fb" stroke="#ccc"/>
 <button onclick="setRange(365,this)">Rok</button>
 </div>
 
-<canvas id="levelChart"></canvas>
-<canvas id="flowChart"></canvas>
+<div class="charts"><canvas id="levelChart"></canvas></div>
+<div class="charts"><canvas id="flowChart"></canvas></div>
 
 </div>
 
@@ -169,73 +173,102 @@ let rangeDays=7;
 let feedsAll=[];
 let levelChart,flowChart;
 
+function fmt(n){return Number(n).toLocaleString('cs-CZ');}
+
 async function fetchData(){
   const r=await fetch("https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M");
   const j=await r.json();
-  feedsAll=j.feeds;
 
+  feedsAll=j.feeds.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+
+  processLatest();
+  renderCharts();
+  updateMaxFlow();
+}
+
+function processLatest(){
   const latest=feedsAll.at(-1);
 
-  const level=parseFloat(latest.field2)||0;
-  const flow=parseFloat(latest.field3)||0;
+  const level=parseFloat(latest.field2);
+  const flow=parseFloat(latest.field3);
 
   document.getElementById("levelValue").textContent=level.toFixed(1);
   document.getElementById("flowValue").textContent=flow.toFixed(2);
   document.getElementById("signalStrength").textContent=latest.field1||"–";
 
   const percent=(level/243)*100;
+
   document.getElementById("svgPercent").textContent=Math.round(percent)+" %";
+  document.getElementById("svgLiters").textContent=fmt(Math.round(percent*442))+" l";
 
   const h=(percent/100)*330;
   document.getElementById("waterRect").setAttribute("y",380-h);
   document.getElementById("waterRect").setAttribute("height",h);
 
   document.getElementById("progressFill").style.width=percent+"%";
-
-  updateMaxFlow();
-  renderCharts();
 }
 
 function updateMaxFlow(){
   let max=0;
   feedsAll.forEach(f=>{
     const v=parseFloat(f.field3);
-    if(v>max) max=v;
+    if(!isNaN(v)&&v>max) max=v;
   });
-  document.getElementById("maxFlowMini").textContent="max "+max.toFixed(2);
+  document.getElementById("maxFlowMini").textContent="max: "+max.toFixed(2)+" L/min";
 }
 
 function setRange(d,b){
   rangeDays=d;
-  document.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".range-buttons button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   renderCharts();
 }
 
 function renderCharts(){
   const now=Date.now();
-  const f=feedsAll.filter(x=>now-new Date(x.created_at)<=rangeDays*86400000);
 
-  const labels=f.map(x=>new Date(x.created_at).toLocaleString("cs-CZ"));
-  const l=f.map(x=>parseFloat(x.field2)||0);
-  const fl=f.map(x=>parseFloat(x.field3)||0);
+  const filtered=feedsAll.filter(f=>
+    now-new Date(f.created_at)<=rangeDays*86400000
+  );
+
+  const labels=filtered.map(f=>{
+    const d=new Date(f.created_at);
+    return rangeDays<=7
+      ? d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})
+      : d.toLocaleDateString("cs-CZ");
+  });
+
+  const levelData=filtered.map(f=>parseFloat(f.field2)||0);
+  const flowData=filtered.map(f=>parseFloat(f.field3)||0);
+
+  const options={
+    maintainAspectRatio:false,
+    responsive:true,
+    interaction:{mode:'index',intersect:false},
+    scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true}}
+  };
 
   if(!levelChart){
-    levelChart=new Chart(levelChart=document.getElementById("levelChart"),{
+    levelChart=new Chart(document.getElementById("levelChart"),{
       type:"line",
-      data:{labels,datasets:[{label:"Hladina",data:l}]}
-    });
-    flowChart=new Chart(flowChart=document.getElementById("flowChart"),{
-      type:"line",
-      data:{labels,datasets:[{label:"Přítok",data:fl}]}
+      data:{labels,datasets:[{label:"Hladina",data:levelData,tension:0.3,pointRadius:0}]},
+      options
     });
   }else{
     levelChart.data.labels=labels;
-    levelChart.data.datasets[0].data=l;
+    levelChart.data.datasets[0].data=levelData;
     levelChart.update();
+  }
 
+  if(!flowChart){
+    flowChart=new Chart(document.getElementById("flowChart"),{
+      type:"line",
+      data:{labels,datasets:[{label:"Přítok",data:flowData,tension:0.3,pointRadius:0}]},
+      options
+    });
+  }else{
     flowChart.data.labels=labels;
-    flowChart.data.datasets[0].data=fl;
+    flowChart.data.datasets[0].data=flowData;
     flowChart.update();
   }
 }
@@ -245,7 +278,7 @@ async function fetchWeather(){
   const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true");
   const d=await r.json();
 
-  document.getElementById("weatherTemp").textContent=d.current_weather.temperature+" °C";
+  document.getElementById("weatherTemp").textContent=d.current_weather.temperature.toFixed(1)+" °C";
   document.getElementById("weatherDesc").textContent="Vítr "+d.current_weather.windspeed+" km/h";
 }
 
