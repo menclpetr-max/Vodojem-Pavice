@@ -17,20 +17,24 @@ body{
   display:flex;justify-content:center;padding:14px;
 }
 .container{width:100%;max-width:900px}
+
 header{
   display:flex;align-items:center;gap:12px;
   background:#fff;padding:14px;border-radius:12px;
   box-shadow:0 6px 14px rgba(0,0,0,0.06);
   margin-bottom:14px;
 }
+
 .signal-icon{
   width:82px;height:82px;border-radius:50%;
   background:var(--accent);color:#fff;
   display:flex;align-items:center;justify-content:center;
   font-size:34px;
 }
+
 header h1{margin:0;font-size:1.4rem}
 .signal-strength{font-size:0.92rem;color:#666}
+
 .stat-card{
   background:linear-gradient(135deg,var(--accent-light),#ffffff);
   padding:22px;
@@ -42,20 +46,53 @@ header h1{margin:0;font-size:1.4rem}
 .stat-title{font-weight:700;font-size:0.95rem;color:#555;margin-bottom:10px}
 .stat-value{font-size:2.6rem;font-weight:900;color:var(--accent)}
 .stat-date{margin-top:6px;font-size:0.95rem;color:#666}
-.range-buttons{display:flex;gap:8px;justify-content:center;margin:10px 0 6px}
+
+.range-buttons{
+  display:flex;gap:8px;justify-content:center;
+  margin:10px 0 6px;flex-wrap:wrap;
+}
 .range-buttons button{
   border:1px solid var(--accent);
   background:#fff;color:var(--accent);
   padding:6px 14px;border-radius:6px;
   cursor:pointer;font-weight:600;
 }
-.range-buttons button.active{background:var(--accent);color:#fff}
+.range-buttons button.active{
+  background:var(--accent);color:#fff;
+}
+
 .charts{
   margin-top:8px;background:#fff;padding:12px;
   border-radius:10px;
   box-shadow:0 6px 14px rgba(0,0,0,0.05);
 }
 canvas{width:100%!important;height:420px!important}
+
+.card{
+  background:#fff;padding:12px;border-radius:12px;
+  box-shadow:0 6px 14px rgba(0,0,0,0.05);
+  margin-bottom:12px;
+}
+.title-row{
+  color:var(--accent);font-weight:700;margin-bottom:8px;
+}
+.value{font-size:2rem;font-weight:800}
+.unit{color:#666}
+
+.progress-bar{
+  width:100%;height:12px;background:#eee;
+  border-radius:8px;overflow:hidden;margin-top:8px;
+}
+.progress-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,#00c853,#00aaff);
+}
+
+#lastUpdate{
+  text-align:center;
+  margin:12px 0;
+  font-style:italic;
+}
 </style>
 </head>
 
@@ -72,17 +109,37 @@ canvas{width:100%!important;height:420px!important}
   </div>
 </header>
 
+<!-- 🌦️ POČASÍ -->
 <div class="stat-card">
-  <div class="stat-title">Nejvyšší roční Přítok</div>
-  <div class="stat-value" id="maxFlowValue">– L/min</div>
-  <div class="stat-date" id="maxFlowDate">–</div>
+  <div class="stat-title">Počasí – Pávice</div>
+  <div class="stat-value" id="weatherTemp">– °C</div>
+  <div class="stat-date" id="weatherDesc">–</div>
 </div>
 
+<!-- 💧 HLADINA -->
+<div class="card">
+<div class="title-row">💧 Hladina</div>
+<div><span class="value" id="levelValue">–</span> <span class="unit">cm</span></div>
+<div class="progress-bar">
+<div id="progressFill" class="progress-fill"></div>
+</div>
+</div>
+
+<!-- 🚰 PŘÍTOK -->
+<div class="card">
+<div class="title-row" style="display:flex;justify-content:space-between;">
+  <span>🚰 Přítok</span>
+  <span style="font-size:0.8rem;color:#666;" id="maxFlowMini">–</span>
+</div>
+<div><span class="value" id="flowValue">–</span> <span class="unit">L/min</span></div>
+</div>
+
+<div id="lastUpdate">Aktualizováno: –</div>
+
 <div class="range-buttons">
-  <!-- ✅ TÝDEN JE AKTIVNÍ -->
-  <button class="active" onclick="setRange(7,this)">Týden</button>
-  <button onclick="setRange(30,this)">Měsíc</button>
-  <button onclick="setRange(365,this)">Rok</button>
+<button class="active" onclick="setRange(7,this)">Týden</button>
+<button onclick="setRange(30,this)">Měsíc</button>
+<button onclick="setRange(365,this)">Rok</button>
 </div>
 
 <div class="charts"><canvas id="levelChart"></canvas></div>
@@ -93,7 +150,7 @@ canvas{width:100%!important;height:420px!important}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 
-let rangeDays = 7; // ✅ výchozí týden
+let rangeDays=7;
 
 const CHANNEL_URL='https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M';
 
@@ -102,8 +159,7 @@ let levelChart,flowChart;
 
 function setRange(days,btn){
   rangeDays=days;
-  document.querySelectorAll('.range-buttons button')
-    .forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.range-buttons button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderCharts();
 }
@@ -112,7 +168,36 @@ async function fetchData(){
   const r=await fetch(CHANNEL_URL);
   const j=await r.json();
   feedsAll=j.feeds.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  processLatest();
   renderCharts();
+  updateYearMaxFlow();
+}
+
+function processLatest(){
+  if(!feedsAll.length)return;
+  const latest=feedsAll.at(-1);
+
+  document.getElementById('signalStrength').textContent=latest.field1||"–";
+
+  const level=parseFloat(latest.field2);
+  const flow=parseFloat(latest.field3);
+
+  document.getElementById('levelValue').textContent=isNaN(level)?"–":level.toFixed(1);
+  document.getElementById('flowValue').textContent=isNaN(flow)?"–":flow.toFixed(2);
+
+  const minutes=Math.floor((Date.now()-new Date(latest.created_at))/60000);
+  document.getElementById('lastUpdate').innerHTML='Aktualizováno před <b>'+minutes+'</b> minutami';
+}
+
+function updateYearMaxFlow(){
+  let maxFlow=0;
+  feedsAll.forEach(f=>{
+    const flow=parseFloat(f.field3);
+    if(!isNaN(flow)&&flow>maxFlow) maxFlow=flow;
+  });
+
+  document.getElementById('maxFlowMini').textContent =
+    "max: " + maxFlow.toFixed(2) + " L/min";
 }
 
 function renderCharts(){
@@ -130,7 +215,7 @@ function renderCharts(){
   if(!levelChart){
     levelChart=new Chart(document.getElementById('levelChart'),{
       type:'line',
-      data:{labels,datasets:[{label:'Hladina (cm)',data:levelData}]},
+      data:{labels,datasets:[{label:'Hladina',data:levelData}]},
       options:{maintainAspectRatio:false}
     });
   }else{
@@ -142,7 +227,7 @@ function renderCharts(){
   if(!flowChart){
     flowChart=new Chart(document.getElementById('flowChart'),{
       type:'line',
-      data:{labels,datasets:[{label:'Přítok (L/min)',data:flowData}]},
+      data:{labels,datasets:[{label:'Přítok',data:flowData}]},
       options:{maintainAspectRatio:false}
     });
   }else{
@@ -152,11 +237,28 @@ function renderCharts(){
   }
 }
 
-fetchData();
+/* 🌦️ POČASÍ */
+async function fetchWeather(){
+  try{
+    const url="https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true";
+    const r=await fetch(url);
+    const data=await r.json();
 
-</script>
-</body>
-</html>
+    document.getElementById("weatherTemp").textContent =
+      data.current_weather.temperature.toFixed(1)+" °C";
+
+    document.getElementById("weatherDesc").textContent =
+      "Vítr "+data.current_weather.windspeed+" km/h";
+  }catch(e){
+    console.log(e);
+  }
+}
+
+fetchData();
+fetchWeather();
+
+setInterval(fetchData,30000);
+setInterval(fetchWeather,600000);
 
 </script>
 </body>
