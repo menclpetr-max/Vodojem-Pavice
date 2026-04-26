@@ -102,6 +102,9 @@ canvas{width:100%!important;height:420px!important}
   <div>
     <h1>Vodojem Pávice</h1>
     Síla signálu: <span id="signalStrength">–</span>
+    <span id="errorMini" style="font-size:0.75rem;color:#999;margin-left:6px;"></span>
+    <br>
+    <span id="lastUpdate" style="font-size:0.9rem;color:#666;"></span>
   </div>
 </header>
 
@@ -117,17 +120,11 @@ canvas{width:100%!important;height:420px!important}
 <svg viewBox="0 0 500 400" width="340" height="260">
 <defs>
 <clipPath id="tankClip">
-<path d="M 30,380 L 470,380
-C 460,260 430,140 350,50
-L 150,50
-C 70,140 40,260 30,380 Z"/>
+<path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"/>
 </clipPath>
 </defs>
 
-<path d="M 30,380 L 470,380
-C 460,260 430,140 350,50
-L 150,50
-C 70,140 40,260 30,380 Z"
+<path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"
 fill="#f7f9fb" stroke="#cfcfcf"/>
 
 <g clip-path="url(#tankClip)">
@@ -139,19 +136,14 @@ fill="#f7f9fb" stroke="#cfcfcf"/>
 </svg>
 </div>
 
-<!-- HLADINA -->
 <div class="card">
 <div class="title-row">💧 Hladina</div>
 <div><span class="value" id="levelValue">–</span> <span class="unit">cm</span></div>
 <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
 </div>
 
-<!-- PŘÍTOK -->
 <div class="card">
-<div class="title-row" style="display:flex;justify-content:space-between;">
-<span>🚰 Přítok</span>
-<span id="maxFlowMini" style="font-size:0.8rem;color:#666;">–</span>
-</div>
+<div class="title-row">🚰 Přítok</div>
 <div><span class="value" id="flowValue">–</span> <span class="unit">L/min</span></div>
 </div>
 
@@ -169,69 +161,19 @@ fill="#f7f9fb" stroke="#cfcfcf"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 
-function getLiters(height_cm){
-  const L=5.9,slope=0.15,maxH=2.45;
-  const profile=[[0,0],[4.4,0],[3.12,2.45],[1.28,2.45]];
-  let h0=Number(height_cm)/100;
-  if(isNaN(h0)||h0<=0)return 0;
-  if(h0>maxH)h0=maxH;
-  const h1=Math.max(0,h0-slope);
-
-  function polygonArea(p){
-    let a=0;
-    for(let i=0;i<p.length;i++){
-      const j=(i+1)%p.length;
-      a+=p[i][0]*p[j][1]-p[j][0]*p[i][1];
-    }
-    return Math.abs(a)/2;
-  }
-  function clip(p,h){
-    const out=[];
-    for(let i=0;i<p.length;i++){
-      const A=p[i],B=p[(i+1)%p.length];
-      const Ain=A[1]<=h,Bin=B[1]<=h;
-      if(Ain)out.push([A[0],A[1]]);
-      if(Ain^Bin){
-        const t=(h-A[1])/(B[1]-A[1]);
-        out.push([A[0]+t*(B[0]-A[0]),h]);
-      }
-    }
-    return out;
-  }
-  function areaAt(d){
-    if(d<=0)return 0;
-    const c=clip(profile,d);
-    return c.length<3?0:polygonArea(c);
-  }
-  function integrate(d0,d1){
-    let steps=300;if(steps%2)steps++;
-    const dx=L/steps;
-    let sum=0;
-    for(let i=0;i<=steps;i++){
-      const t=i/steps;
-      const d=d0+(d1-d0)*t;
-      const A=areaAt(d);
-      const k=(i===0||i===steps)?1:(i%2?4:2);
-      sum+=k*A;
-    }
-    return sum*dx/3;
-  }
-  return integrate(h0,h1)*1000;
-}
-
-function fmt(n){return Number(n).toLocaleString('cs-CZ');}
-
-let rangeDays=7;
 let feedsAll=[];
 let levelChart,flowChart;
+let rangeDays=7;
+
+function fmt(n){return Number(n).toLocaleString('cs-CZ');}
 
 async function fetchData(){
   const r=await fetch("https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M");
   const j=await r.json();
 
   feedsAll=j.feeds.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-
   const latest=feedsAll.at(-1);
+
   const level=parseFloat(latest.field2);
   const flow=parseFloat(latest.field3);
 
@@ -239,30 +181,21 @@ async function fetchData(){
   document.getElementById("flowValue").textContent=flow.toFixed(2);
   document.getElementById("signalStrength").textContent=latest.field1||"–";
 
-  const volume=getLiters(level);
-  let percent=(volume/44262)*100;
-  if(percent>100)percent=100;
+  // kontrola aktualizace
+  const lastTime=new Date(latest.created_at);
+  const diffMin=(Date.now()-lastTime)/60000;
 
-  document.getElementById("svgLiters").textContent=fmt(Math.round(volume))+" l";
-  document.getElementById("svgPercent").textContent=Math.round(percent)+" %";
+  const lastEl=document.getElementById("lastUpdate");
 
-  const h=(percent/100)*330;
-  document.getElementById("waterRect").setAttribute("y",380-h);
-  document.getElementById("waterRect").setAttribute("height",h);
+  if(diffMin>115){
+    lastEl.textContent="⚠ Neaktualizováno "+Math.round(diffMin)+" min";
+    lastEl.style.color="#c62828";
+  }else{
+    lastEl.textContent="Aktualizace před "+Math.round(diffMin)+" min";
+    lastEl.style.color="#666";
+  }
 
-  document.getElementById("progressFill").style.width=(level/243)*100+"%";
-
-  updateMaxFlow();
   renderCharts();
-}
-
-function updateMaxFlow(){
-  let max=0;
-  feedsAll.forEach(f=>{
-    const v=parseFloat(f.field3);
-    if(!isNaN(v)&&v>max) max=v;
-  });
-  document.getElementById("maxFlowMini").textContent="max: "+max.toFixed(2)+" L/min";
 }
 
 function setRange(d,b){
@@ -286,25 +219,42 @@ function renderCharts(){
       : d.toLocaleDateString("cs-CZ");
   });
 
-  const levelData=filtered.map(f=>parseFloat(f.field2)||0);
-  const flowData=filtered.map(f=>parseFloat(f.field3)||0);
+  let errorCount=0;
+
+  const levelData=filtered.map(f=>{
+    const v=parseFloat(f.field2);
+    if(isNaN(v)||v<=0){
+      errorCount++;
+      return null;
+    }
+    return v;
+  });
+
+  const flowData=filtered.map(f=>{
+    const v=parseFloat(f.field3);
+    return (isNaN(v)||v<0)?null:v;
+  });
+
+  const mini=document.getElementById("errorMini");
+  mini.textContent = errorCount>0 ? "· err "+errorCount : "";
 
   const options={
     maintainAspectRatio:false,
     responsive:true,
     interaction:{mode:'index',intersect:false},
-    scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true}}
+    scales:{y:{beginAtZero:true}}
   };
 
   if(!levelChart){
     levelChart=new Chart(document.getElementById("levelChart"),{
       type:"line",
-      data:{labels,datasets:[{label:"Hladina",data:levelData,tension:0.3,pointRadius:0}]},
+      data:{labels,datasets:[{label:"Hladina",data:levelData,spanGaps:true}]},
       options
     });
+
     flowChart=new Chart(document.getElementById("flowChart"),{
       type:"line",
-      data:{labels,datasets:[{label:"Přítok",data:flowData,tension:0.3,pointRadius:0}]},
+      data:{labels,datasets:[{label:"Přítok",data:flowData,spanGaps:true}]},
       options
     });
   }else{
@@ -318,20 +268,8 @@ function renderCharts(){
   }
 }
 
-/* počasí */
-async function fetchWeather(){
-  const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true");
-  const d=await r.json();
-
-  document.getElementById("weatherTemp").textContent=d.current_weather.temperature.toFixed(1)+" °C";
-  document.getElementById("weatherDesc").textContent="Vítr "+d.current_weather.windspeed+" km/h";
-}
-
 fetchData();
-fetchWeather();
-
 setInterval(fetchData,30000);
-setInterval(fetchWeather,600000);
 
 </script>
 </body>
