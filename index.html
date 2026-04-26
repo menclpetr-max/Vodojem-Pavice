@@ -40,6 +40,7 @@ header{
   margin-bottom:18px;
   text-align:center;
 }
+
 .stat-title{font-weight:700;font-size:0.95rem;color:#555;margin-bottom:10px}
 .stat-value{font-size:2.6rem;font-weight:900;color:var(--accent)}
 .stat-date{margin-top:6px;font-size:0.95rem;color:#666}
@@ -55,9 +56,11 @@ header{
   box-shadow:0 6px 14px rgba(0,0,0,0.05);
   margin-bottom:12px;
 }
+
 .title-row{
   color:var(--accent);font-weight:700;margin-bottom:8px;
 }
+
 .value{font-size:2rem;font-weight:800}
 .unit{color:#666}
 
@@ -65,6 +68,7 @@ header{
   width:100%;height:12px;background:#eee;
   border-radius:8px;overflow:hidden;margin-top:8px;
 }
+
 .progress-fill{
   height:100%;width:0;
   background:linear-gradient(90deg,#00c853,#00aaff);
@@ -74,12 +78,14 @@ header{
 .range-buttons{
   display:flex;gap:8px;justify-content:center;margin:10px 0;
 }
+
 .range-buttons button{
   border:1px solid var(--accent);
   background:#fff;color:var(--accent);
   padding:6px 14px;border-radius:6px;
   cursor:pointer;
 }
+
 .range-buttons button.active{
   background:var(--accent);color:#fff;
 }
@@ -120,11 +126,17 @@ canvas{width:100%!important;height:420px!important}
 <svg viewBox="0 0 500 400" width="340" height="260">
 <defs>
 <clipPath id="tankClip">
-<path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"/>
+<path d="M 30,380 L 470,380
+C 460,260 430,140 350,50
+L 150,50
+C 70,140 40,260 30,380 Z"/>
 </clipPath>
 </defs>
 
-<path d="M 30,380 L 470,380 C 460,260 430,140 350,50 L 150,50 C 70,140 40,260 30,380 Z"
+<path d="M 30,380 L 470,380
+C 460,260 430,140 350,50
+L 150,50
+C 70,140 40,260 30,380 Z"
 fill="#f7f9fb" stroke="#cfcfcf"/>
 
 <g clip-path="url(#tankClip)">
@@ -161,11 +173,59 @@ fill="#f7f9fb" stroke="#cfcfcf"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 
+function getLiters(height_cm){
+  const L=5.9,slope=0.15,maxH=2.45;
+  const profile=[[0,0],[4.4,0],[3.12,2.45],[1.28,2.45]];
+  let h0=Number(height_cm)/100;
+  if(isNaN(h0)||h0<=0)return 0;
+  if(h0>maxH)h0=maxH;
+  const h1=Math.max(0,h0-slope);
+
+  function polygonArea(p){
+    let a=0;
+    for(let i=0;i<p.length;i++){
+      const j=(i+1)%p.length;
+      a+=p[i][0]*p[j][1]-p[j][0]*p[i][1];
+    }
+    return Math.abs(a)/2;
+  }
+  function clip(p,h){
+    const out=[];
+    for(let i=0;i<p.length;i++){
+      const A=p[i],B=p[(i+1)%p.length];
+      const Ain=A[1]<=h,Bin=B[1]<=h;
+      if(Ain)out.push([A[0],A[1]]);
+      if(Ain^Bin){
+        const t=(h-A[1])/(B[1]-A[1]);
+        out.push([A[0]+t*(B[0]-A[0]),h]);
+      }
+    }
+    return out;
+  }
+  function areaAt(d){
+    if(d<=0)return 0;
+    const c=clip(profile,d);
+    return c.length<3?0:polygonArea(c);
+  }
+  function integrate(d0,d1){
+    let steps=300;if(steps%2)steps++;
+    const dx=L/steps;
+    let sum=0;
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const d=d0+(d1-d0)*t;
+      const A=areaAt(d);
+      const k=(i===0||i===steps)?1:(i%2?4:2);
+      sum+=k*A;
+    }
+    return sum*dx/3;
+  }
+  return integrate(h0,h1)*1000;
+}
+
 let feedsAll=[];
 let levelChart,flowChart;
 let rangeDays=7;
-
-function fmt(n){return Number(n).toLocaleString('cs-CZ');}
 
 async function fetchData(){
   const r=await fetch("https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M");
@@ -181,18 +241,29 @@ async function fetchData(){
   document.getElementById("flowValue").textContent=flow.toFixed(2);
   document.getElementById("signalStrength").textContent=latest.field1||"–";
 
-  // kontrola aktualizace
-  const lastTime=new Date(latest.created_at);
-  const diffMin=(Date.now()-lastTime)/60000;
+  const volume=getLiters(level);
+  let percent=(volume/44262)*100;
+  if(percent>100)percent=100;
 
-  const lastEl=document.getElementById("lastUpdate");
+  document.getElementById("svgLiters").textContent=Math.round(volume)+" l";
+  document.getElementById("svgPercent").textContent=Math.round(percent)+" %";
 
-  if(diffMin>115){
-    lastEl.textContent="⚠ Neaktualizováno "+Math.round(diffMin)+" min";
-    lastEl.style.color="#c62828";
+  const h=(percent/100)*330;
+  document.getElementById("waterRect").setAttribute("y",380-h);
+  document.getElementById("waterRect").setAttribute("height",h);
+
+  document.getElementById("progressFill").style.width=(level/243)*100+"%";
+
+  // kontrola stáří
+  const diff=(Date.now()-new Date(latest.created_at))/60000;
+  const el=document.getElementById("lastUpdate");
+
+  if(diff>115){
+    el.textContent="⚠ Neaktualizováno "+Math.round(diff)+" min";
+    el.style.color="#c62828";
   }else{
-    lastEl.textContent="Aktualizace před "+Math.round(diffMin)+" min";
-    lastEl.style.color="#666";
+    el.textContent="Aktualizace před "+Math.round(diff)+" min";
+    el.style.color="#666";
   }
 
   renderCharts();
@@ -235,8 +306,8 @@ function renderCharts(){
     return (isNaN(v)||v<0)?null:v;
   });
 
-  const mini=document.getElementById("errorMini");
-  mini.textContent = errorCount>0 ? "· err "+errorCount : "";
+  document.getElementById("errorMini").textContent =
+    errorCount>0 ? "· err "+errorCount : "";
 
   const options={
     maintainAspectRatio:false,
@@ -248,13 +319,13 @@ function renderCharts(){
   if(!levelChart){
     levelChart=new Chart(document.getElementById("levelChart"),{
       type:"line",
-      data:{labels,datasets:[{label:"Hladina",data:levelData,spanGaps:true}]},
+      data:{labels,datasets:[{label:"Hladina",data:levelData,spanGaps:true,tension:0.3,pointRadius:0}]},
       options
     });
 
     flowChart=new Chart(document.getElementById("flowChart"),{
       type:"line",
-      data:{labels,datasets:[{label:"Přítok",data:flowData,spanGaps:true}]},
+      data:{labels,datasets:[{label:"Přítok",data:flowData,spanGaps:true,tension:0.3,pointRadius:0}]},
       options
     });
   }else{
@@ -268,8 +339,19 @@ function renderCharts(){
   }
 }
 
+async function fetchWeather(){
+  const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true");
+  const d=await r.json();
+
+  document.getElementById("weatherTemp").textContent=d.current_weather.temperature.toFixed(1)+" °C";
+  document.getElementById("weatherDesc").textContent="Vítr "+d.current_weather.windspeed+" km/h";
+}
+
 fetchData();
+fetchWeather();
+
 setInterval(fetchData,30000);
+setInterval(fetchWeather,600000);
 
 </script>
 </body>
