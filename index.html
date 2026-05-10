@@ -163,6 +163,7 @@ fill="#f7f9fb" stroke="#cfcfcf"/>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 
 // ===== původní výpočet zachován =====
@@ -182,12 +183,15 @@ function getLiters(height_cm){
     }
     return Math.abs(a)/2;
   }
+
   function clip(p,h){
     const out=[];
     for(let i=0;i<p.length;i++){
       const A=p[i],B=p[(i+1)%p.length];
       const Ain=A[1]<=h,Bin=B[1]<=h;
+
       if(Ain)out.push([A[0],A[1]]);
+
       if(Ain^Bin){
         const t=(h-A[1])/(B[1]-A[1]);
         out.push([A[0]+t*(B[0]-A[0]),h]);
@@ -195,15 +199,20 @@ function getLiters(height_cm){
     }
     return out;
   }
+
   function areaAt(d){
     if(d<=0)return 0;
     const c=clip(profile,d);
     return c.length<3?0:polygonArea(c);
   }
+
   function integrate(d0,d1){
-    let steps=300;if(steps%2)steps++;
+    let steps=300;
+    if(steps%2)steps++;
+
     const dx=L/steps;
     let sum=0;
+
     for(let i=0;i<=steps;i++){
       const t=i/steps;
       const d=d0+(d1-d0)*t;
@@ -211,8 +220,10 @@ function getLiters(height_cm){
       const k=(i===0||i===steps)?1:(i%2?4:2);
       sum+=k*A;
     }
+
     return sum*dx/3;
   }
+
   return integrate(h0,h1)*1000;
 }
 
@@ -221,10 +232,17 @@ let levelChart,flowChart;
 let rangeDays=7;
 
 async function fetchData(){
-  const r=await fetch("https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M");
+
+  const r=await fetch(
+    "https://api.thingspeak.com/channels/1214142/feeds.json?results=8000&api_key=SGHZ5KIDVYK3BG1M"
+  );
+
   const j=await r.json();
 
-  feedsAll=j.feeds.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  feedsAll=j.feeds.sort(
+    (a,b)=>new Date(a.created_at)-new Date(b.created_at)
+  );
+
   const latest=feedsAll.at(-1);
 
   const level=parseFloat(latest.field2);
@@ -235,19 +253,29 @@ async function fetchData(){
   document.getElementById("signalStrength").textContent=latest.field1||"–";
 
   const volume=getLiters(level);
+
   let percent=(volume/44262)*100;
   if(percent>100)percent=100;
 
-  document.getElementById("svgLiters").textContent=Math.round(volume)+" l";
-  document.getElementById("svgPercent").textContent=Math.round(percent)+" %";
+  document.getElementById("svgLiters").textContent=
+    Math.round(volume)+" l";
+
+  document.getElementById("svgPercent").textContent=
+    Math.round(percent)+" %";
 
   const h=(percent/100)*330;
-  document.getElementById("waterRect").setAttribute("y",380-h);
-  document.getElementById("waterRect").setAttribute("height",h);
 
-  document.getElementById("progressFill").style.width=(level/243)*100+"%";
+  document.getElementById("waterRect")
+    .setAttribute("y",380-h);
+
+  document.getElementById("waterRect")
+    .setAttribute("height",h);
+
+  document.getElementById("progressFill").style.width=
+    (level/243)*100+"%";
 
   const diff=(Date.now()-new Date(latest.created_at))/60000;
+
   const el=document.getElementById("lastUpdate");
 
   if(diff>115){
@@ -263,12 +291,17 @@ async function fetchData(){
 
 function setRange(d,b){
   rangeDays=d;
-  document.querySelectorAll(".range-buttons button").forEach(x=>x.classList.remove("active"));
+
+  document.querySelectorAll(".range-buttons button")
+    .forEach(x=>x.classList.remove("active"));
+
   b.classList.add("active");
+
   renderCharts();
 }
 
 function renderCharts(){
+
   const now=Date.now();
 
   const filtered=feedsAll.filter(f=>
@@ -276,9 +309,16 @@ function renderCharts(){
   );
 
   const labels=filtered.map(f=>{
+
     const d=new Date(f.created_at);
+
     return rangeDays<=7
-      ? d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})
+      ? d.toLocaleString("cs-CZ",{
+          day:"2-digit",
+          month:"2-digit",
+          hour:"2-digit",
+          minute:"2-digit"
+        })
       : d.toLocaleDateString("cs-CZ");
   });
 
@@ -294,10 +334,14 @@ function renderCharts(){
 
   // ERRORY ZA 24h
   let error24=0;
+
   feedsAll.forEach(f=>{
     if(Date.now()-new Date(f.created_at)<=86400000){
       const v=parseFloat(f.field2);
-      if(isNaN(v)||v<=0) error24++;
+
+      if(isNaN(v)||v<=0){
+        error24++;
+      }
     }
   });
 
@@ -305,26 +349,81 @@ function renderCharts(){
     error24>0 ? "· err24 "+error24 : "";
 
   const options={
+
     maintainAspectRatio:false,
     responsive:true,
-    interaction:{mode:'index',intersect:false},
-    plugins:{tooltip:{enabled:false}},
-    scales:{y:{beginAtZero:true}}
+
+    interaction:{
+      mode:'nearest',
+      intersect:true
+    },
+
+    plugins:{
+      tooltip:{
+        enabled:true,
+        callbacks:{
+          label:function(context){
+            return context.dataset.label + ": " + context.parsed.y;
+          }
+        }
+      }
+    },
+
+    scales:{
+      y:{
+        beginAtZero:true
+      }
+    }
   };
 
   if(!levelChart){
-    levelChart=new Chart(document.getElementById("levelChart"),{
-      type:"line",
-      data:{labels,datasets:[{label:"Hladina",data:levelData,spanGaps:true,tension:0.3,pointRadius:0}]},
-      options
-    });
 
-    flowChart=new Chart(document.getElementById("flowChart"),{
-      type:"line",
-      data:{labels,datasets:[{label:"Přítok",data:flowData,spanGaps:true,tension:0.3,pointRadius:0}]},
-      options
-    });
+    levelChart=new Chart(
+      document.getElementById("levelChart"),
+      {
+        type:"line",
+
+        data:{
+          labels,
+
+          datasets:[{
+            label:"Hladina",
+            data:levelData,
+            spanGaps:true,
+            tension:0.3,
+            pointRadius:3,
+            pointHoverRadius:6
+          }]
+        },
+
+        options
+      }
+    );
+
+    flowChart=new Chart(
+      document.getElementById("flowChart"),
+      {
+        type:"line",
+
+        data:{
+          labels,
+
+          datasets:[{
+            label:"Přítok",
+            data:flowData,
+            spanGaps:true,
+            tension:0.3,
+            pointRadius:3,
+            pointHoverRadius:6
+          }]
+        },
+
+        options
+      }
+    );
+
   }else{
+
     levelChart.data.labels=labels;
     levelChart.data.datasets[0].data=levelData;
     levelChart.update();
@@ -336,11 +435,18 @@ function renderCharts(){
 }
 
 async function fetchWeather(){
-  const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true");
+
+  const r=await fetch(
+    "https://api.open-meteo.com/v1/forecast?latitude=50.23&longitude=12.86&current_weather=true"
+  );
+
   const d=await r.json();
 
-  document.getElementById("weatherTemp").textContent=d.current_weather.temperature.toFixed(1)+" °C";
-  document.getElementById("weatherDesc").textContent="Vítr "+d.current_weather.windspeed+" km/h";
+  document.getElementById("weatherTemp").textContent =
+    d.current_weather.temperature.toFixed(1)+" °C";
+
+  document.getElementById("weatherDesc").textContent =
+    "Vítr "+d.current_weather.windspeed+" km/h";
 }
 
 fetchData();
@@ -350,5 +456,6 @@ setInterval(fetchData,30000);
 setInterval(fetchWeather,600000);
 
 </script>
+
 </body>
 </html>
