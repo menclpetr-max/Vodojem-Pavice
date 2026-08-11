@@ -206,7 +206,7 @@ fill="#2a8be8"/>
 id="svgLiters"
 x="250"
 y="170"
-fill="#fff"
+fill="#000"
 font-size="30"
 font-weight="800"
 text-anchor="middle">
@@ -379,6 +379,7 @@ let feedsAll=[];
 let levelChart;
 let flowChart;
 let rangeDays=7;
+let lowLevelNow=false;
 
 // ===== načtení dat =====
 
@@ -402,6 +403,13 @@ async function fetchData(){
   document.getElementById("levelValue").textContent=
     level.toFixed(1);
 
+  const lowLevel = !isNaN(level) && level < 100;
+
+  document.getElementById("levelValue").style.color =
+    lowLevel ? "#d32f2f" : "#222";
+
+  lowLevelNow = lowLevel;
+
   document.getElementById("flowValue").textContent=
     flow.toFixed(2);
 
@@ -420,6 +428,12 @@ async function fetchData(){
   document.getElementById("svgPercent").textContent=
     Math.round(percent)+" %";
 
+  // barva čísel v nádrži: červená pokud je hladina nižší než 100 cm
+  const numberColor = lowLevel ? "#d32f2f" : "#000";
+
+  document.getElementById("svgLiters").setAttribute("fill", numberColor);
+  document.getElementById("svgPercent").setAttribute("fill", numberColor);
+
   const h=(percent/100)*330;
 
   document.getElementById("waterRect")
@@ -430,6 +444,11 @@ async function fetchData(){
 
   document.getElementById("progressFill").style.width=
     (level/243)*100+"%";
+
+  document.getElementById("progressFill").style.background =
+    lowLevel
+      ? "linear-gradient(90deg,#ff5252,#d32f2f)"
+      : "linear-gradient(90deg,#00c853,#00aaff)";
 
   const diff=
     (Date.now()-new Date(latest.created_at))/60000;
@@ -582,6 +601,8 @@ function renderCharts(){
 
   // ===== vytvoření grafů =====
 
+  const levelColor = lowLevelNow ? "#d32f2f" : "#36A2EB";
+
   if(!levelChart){
 
     levelChart=new Chart(
@@ -600,7 +621,9 @@ function renderCharts(){
             spanGaps:true,
             tension:0.3,
             pointRadius:3,
-            pointHoverRadius:6
+            pointHoverRadius:6,
+            borderColor:levelColor,
+            backgroundColor:levelColor
           }]
         },
 
@@ -636,6 +659,8 @@ function renderCharts(){
 
     levelChart.data.labels=labels;
     levelChart.data.datasets[0].data=levelData;
+    levelChart.data.datasets[0].borderColor=levelColor;
+    levelChart.data.datasets[0].backgroundColor=levelColor;
     levelChart.update();
 
     flowChart.data.labels=labels;
