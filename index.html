@@ -249,6 +249,17 @@ text-anchor="middle">
   </div>
 </div>
 
+<div class="card">
+  <div class="title-row">⏳ Odhad zbytku vody</div>
+
+  <div>
+    <span class="value" id="daysLeftValue">–</span>
+    <span class="unit" id="daysLeftUnit"></span>
+  </div>
+
+  <div class="stat-date" id="daysLeftDesc">–</div>
+</div>
+
 <div class="range-buttons">
   <button class="active" onclick="setRange(7,this)">Týden</button>
   <button onclick="setRange(30,this)">Měsíc</button>
@@ -381,6 +392,117 @@ let flowChart;
 let rangeDays=7;
 let lowLevelNow=false;
 
+// ===== odhad počtu dní do vyčerpání vody =====
+// Bere hladinu (field2) za posledních N dní, přepočítá na objem (litry)
+// a lineární regresí spočítá trend (litry/den). Pokud objem klesá,
+// odhadne, za kolik dní dojde na 0.
+
+const DAYS_LEFT_WINDOW = 3; // kolik dní zpětně se bere pro výpočet trendu
+
+function estimateDaysRemaining(windowDays=DAYS_LEFT_WINDOW){
+
+  const now=Date.now();
+  const cutoff=now-windowDays*86400000;
+
+  const points=feedsAll
+    .filter(f=>new Date(f.created_at).getTime()>=cutoff)
+    .map(f=>{
+
+      const level=parseFloat(f.field2);
+
+      if(isNaN(level)||level<=0)return null;
+
+      return {
+        t:new Date(f.created_at).getTime(),
+        h:level,
+        vol:getLiters(level)
+      };
+    })
+    .filter(p=>p!==null);
+
+  if(points.length<4)return null;
+
+  // Robustní odhad: zprůměrujeme pár prvních a pár posledních záznamů v okně,
+  // aby jeden šumový/chybný vzorek neposunul výsledek (na rozdíl od regrese
+  // přes všechny body, kterou dokáže "rozmělnit" nerovnoměrné vzorkování).
+  const edgeCount=Math.max(1, Math.min(5, Math.floor(points.length/4)));
+
+  const firstSlice=points.slice(0, edgeCount);
+  const lastSlice=points.slice(-edgeCount);
+
+  const avg=(arr,key)=>arr.reduce((s,p)=>s+p[key],0)/arr.length;
+
+  const tStart=avg(firstSlice,"t");
+  const tEnd=avg(lastSlice,"t");
+
+  const elapsedDays=(tEnd-tStart)/86400000;
+
+  if(elapsedDays<=0)return null;
+
+  const volStart=avg(firstSlice,"vol");
+  const volEnd=avg(lastSlice,"vol");
+
+  const hStart=avg(firstSlice,"h");
+  const hEnd=avg(lastSlice,"h");
+
+  const slopePerDay=(volEnd-volStart)/elapsedDays;     // litry/den, záporné = ubývá
+  const cmSlopePerDay=(hEnd-hStart)/elapsedDays;        // cm/den, záporné = ubývá
+
+  const currentVolume=points[points.length-1].vol;
+  const currentHeight=points[points.length-1].h;
+
+  return {slopePerDay, cmSlopePerDay, currentVolume, currentHeight, windowDays, samples:points.length, elapsedDays};
+}
+
+function updateDaysLeft(){
+
+  const el=document.getElementById("daysLeftValue");
+  const unitEl=document.getElementById("daysLeftUnit");
+  const descEl=document.getElementById("daysLeftDesc");
+
+  const est=estimateDaysRemaining();
+
+  if(!est || est.samples<4){
+
+    el.textContent="–";
+    unitEl.textContent="";
+    descEl.textContent="Nedostatek dat pro odhad";
+
+    return;
+  }
+
+  const declineRate=-est.slopePerDay;   // kladné číslo = úbytek l/den
+
+  // "šum" - pokud je pokles zanedbatelný, nebereme to jako reálný spotřebovávaný trend
+  if(declineRate<=1){
+
+    el.textContent="∞";
+    unitEl.textContent="";
+    descEl.textContent="Hladina neklesá (spíš stoupá / stabilní)";
+
+    return;
+  }
+
+  const days=est.currentVolume/declineRate;
+
+  const targetDate=new Date(Date.now()+days*86400000);
+
+  el.textContent=days.toFixed(1);
+  unitEl.textContent="dní";
+
+  descEl.textContent=
+    "Při aktuálním trendu prázdná cca "+
+    targetDate.toLocaleDateString("cs-CZ");
+
+  if(days<3){
+    el.style.color="#d32f2f";
+  }else if(days<7){
+    el.style.color="#f57c00";
+  }else{
+    el.style.color="var(--accent)";
+  }
+}
+
 // ===== načtení dat =====
 
 async function fetchData(){
@@ -471,6 +593,7 @@ async function fetchData(){
   }
 
   renderCharts();
+  updateDaysLeft();
 }
 
 // ===== přepínání rozsahu =====
