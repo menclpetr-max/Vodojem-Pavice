@@ -392,6 +392,111 @@ let flowChart;
 let rangeDays=7;
 let lowLevelNow=false;
 
+// ===== filtr nesmyslných výkyvů (spike) v hladině =====
+// Senzor občas ojediněle pošle nesmyslnou hodnotu (např. skok na 200cm,
+// když skutečná hladina je 70cm), a hned další záznam je zase v pořádku.
+// Takový osamocený výkyv poznáme podle toho, že se hodně liší od hodnoty
+// PŘED i PO něm, zatímco hodnoty před a po sobě jsou navzájem blízko.
+// Takto označené záznamy se nastaví na null - dál se v aplikaci nikde
+// nezobrazí ani nepoužijí (graf, výpočet objemu, odhad dní atd.).
+
+const LEVEL_SPIKE_JUMP_CM = 40;      // co považujeme za nesmyslný skok oproti poslední dobré hodnotě
+const LEVEL_SPIKE_EDGE_JUMP_CM = 70; // přísnější limit, když skok nejde potvrdit návratem k normálu (poslední záznam)
+
+function despikeLevelData(feeds){
+
+  // seznam indexů (v poli feeds) s platnou číselnou hodnotou field2
+  const idxs=[];
+  const vals=[];
+
+  feeds.forEach((f,i)=>{
+
+    const v=parseFloat(f.field2);
+
+    if(!isNaN(v)&&v>0){
+      idxs.push(i);
+      vals.push(v);
+    }
+  });
+
+  const badLocal=new Array(vals.length).fill(false);
+
+  // lastGood = poslední hodnota, kterou jsme uznali za reálnou (ne výkyv).
+  // Díky tomu se u sebe jdoucí výkyvy neporovnávají mezi sebou navzájem,
+  // ale vždy vůči poslednímu ověřenému "normálu".
+  let lastGood=null;
+
+  for(let k=0;k<vals.length;k++){
+
+    const v=vals[k];
+    const next=(k<vals.length-1) ? vals[k+1] : null;
+
+    if(lastGood===null){
+
+      // úplně první platný záznam v okně - není s čím srovnat dozadu.
+      // Zkontrolujeme aspoň, jestli hned po něm nenásledují dvě navzájem
+      // blízké hodnoty, vůči kterým je právě tenhle první odlehlý.
+      const next2=(k<vals.length-2) ? vals[k+2] : null;
+
+      if(next!==null && next2!==null &&
+         Math.abs(v-next)>LEVEL_SPIKE_JUMP_CM &&
+         Math.abs(next-next2)<=LEVEL_SPIKE_JUMP_CM){
+
+        badLocal[k]=true;
+        continue;
+      }
+
+      lastGood=v;
+      continue;
+    }
+
+    const diffPrev=Math.abs(v-lastGood);
+
+    if(diffPrev<=LEVEL_SPIKE_JUMP_CM){
+      lastGood=v;
+      continue;
+    }
+
+    if(next===null){
+
+      // poslední záznam v okně - nejde potvrdit návratem k normálu,
+      // proto přísnější limit, ať omylem nesmažeme reálný prudší trend
+      if(diffPrev>LEVEL_SPIKE_EDGE_JUMP_CM){
+        badLocal[k]=true;
+      }else{
+        lastGood=v;
+      }
+
+      continue;
+    }
+
+    const diffNextToGood=Math.abs(next-lastGood);
+
+    if(diffNextToGood<=LEVEL_SPIKE_JUMP_CM){
+
+      // hned další záznam se vrací k normálu -> tohle byl osamocený výkyv
+      badLocal[k]=true;
+
+    }else{
+
+      // i další hodnota je daleko od poslední dobré hodnoty - nevypadá
+      // to jako jednorázový výkyv, spíš reálná změna -> necháme být
+      lastGood=v;
+    }
+  }
+
+  let removed=0;
+
+  badLocal.forEach((bad,k)=>{
+    if(bad){
+      feeds[idxs[k]].field2=null;
+      removed++;
+    }
+  });
+
+  return removed;
+}
+
 // ===== odhad počtu dní do vyčerpání vody =====
 // Bere hladinu (field2) za posledních N dní, přepočítá na objem (litry)
 // a lineární regresí spočítá trend (litry/den). Pokud objem klesá,
@@ -517,9 +622,20 @@ async function fetchData(){
     (a,b)=>new Date(a.created_at)-new Date(b.created_at)
   );
 
+  despikeLevelData(feedsAll);
+
   const latest=feedsAll.at(-1);
 
-  const level=parseFloat(latest.field2);
+  // pro hladinu bereme poslední ZÁZNAM S PLATNOU (nevyfiltrovanou) hodnotou -
+  // kdyby byl spike zrovna v posledním vzorku, nezobrazíme nesmysl
+  const latestLevelFeed=[...feedsAll]
+    .reverse()
+    .find(f=>{
+      const v=parseFloat(f.field2);
+      return !isNaN(v)&&v>0;
+    });
+
+  const level=latestLevelFeed ? parseFloat(latestLevelFeed.field2) : NaN;
   const flow=parseFloat(latest.field3);
 
   document.getElementById("levelValue").textContent=
